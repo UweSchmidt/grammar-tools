@@ -1,15 +1,16 @@
 module CFG.FirstFollow where
 
-import           Prelude hiding (Word, map, iterate)
+import           Prelude hiding (Word, iterate)
 import qualified Prelude as P
 
-import           Data.Set
-import qualified Data.Set as S
-import qualified Data.Map as M
+import           Control.Arrow ((&&&))
 
-import CFG.Types
-import CFG.Parser
-import CFG.Pretty
+import           Data.Set  (empty, foldl', insert, member, singleton, union)
+import           Data.List (tails)
+
+import           CFG.Types
+import           CFG.Parser
+import           CFG.Pretty
 
 -- ----------------------------------------
 --
@@ -49,8 +50,18 @@ forEachRule processRule rs acc =
 -- loop over all symbols in a word, e.g. a RHS of rule
 
 forEachSymbol :: (Symbol -> a -> a) -> Word -> a -> a
-forEachSymbol processSymbol xs acc =
-  P.foldr processSymbol acc xs
+forEachSymbol = forEach
+
+forEachWord :: (Word -> a -> a) -> [Word] -> a -> a
+forEachWord = forEach
+
+forEach :: (v -> a -> a) -> [v] -> a -> a
+forEach op vs acc =
+  P.foldr op acc vs
+
+forEachSym :: (Symbol -> a -> a) -> SymSet -> a -> a
+forEachSym processSymbol syms acc =
+  foldl' (flip processSymbol) acc syms
 
 -- ----------------------------------------
 --
@@ -113,17 +124,14 @@ firstSets' nullables (n, t, rules, s) =
     -- for all terminal syms t: first(t) = {t}
     -- for all nonterminals  n: first(n) = {}
     initFirstSyms :: SymMap
-    initFirstSyms = initT `M.union` initN
+    initFirstSyms = initT `unionSyms` initN
       where
         initT, initN :: SymMap
         initT =
-          foldl' (\acc sym -> insertSyms sym (singleton sym) acc)
-                 emptySyms
-                 t
+          forEachSym (\sym -> insertSyms sym (singleton sym)) t emptySyms
+
         initN =
-          foldl' (\acc sym -> insertSyms sym  empty acc)
-                 emptySyms
-                 n
+          forEachSym (\sym -> insertSyms sym empty) n emptySyms
 
 -- take a word [y1,y2,..,yn], e.g. a right hand side
 -- of a grammar rule, and compute the FIRST set
@@ -200,6 +208,29 @@ followSets' nullables firsts (n, t, rules, s) =
             -- extend follow(y1) by first(y2) and
             -- in case of nullable(y2) the y3 and so on
             followYS :: Word -> SymMap -> SymMap
+            followYS w sm =
+              forEach followRHS (rhs w) sm
+              where
+
+                -- split a RHS [y1, y2, ..., yn] into
+                -- [(y1, [y2, ..., yn]), (y2, [..., yn]), ..., (yn, [])]
+
+                rhs :: Word -> [(Symbol, Word)]
+                rhs = map (head &&& tail) . init . tails
+
+                followRHS :: (Symbol, Word) -> SymMap -> SymMap
+                followRHS (y1, ys) r1 =
+                  forEach followY ys emptySyms `unionSyms` r1
+                  where
+                    followY :: Symbol -> SymMap -> SymMap
+                    followY y2 r
+                      | y2 `member` nullables = r' `unionSyms` r
+                      | otherwise             = r'
+                      where
+                        r' = singletonSyms y1 (lookupSyms y2 firsts)
+
+
+{-
             followYS []         acc0 = acc0
             followYS (y1 : ys') acc0 = followYS ys' . followY1 ys' $ acc0
               where
@@ -209,12 +240,10 @@ followSets' nullables firsts (n, t, rules, s) =
                   | otherwise             =               acc1'
                   where
                     acc1' = insertSyms y1 (lookupSyms y2 firsts) acc'
-
+-}
     initFollowSyms :: SymMap
     initFollowSyms =
-      foldl' (\acc sym -> insertSyms sym empty acc)
-             emptySyms
-             (n `union` t)
+      forEachSym (\sym -> insertSyms sym empty) (n `union` t) emptySyms
 
 -- ----------------------------------------
 
