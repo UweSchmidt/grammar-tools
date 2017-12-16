@@ -12,19 +12,21 @@ import System.Environment (getArgs)
 main :: IO ()
 main = do
   fn <- head <$> getArgs
-  readGrammar fn >>= evalGrammar
+  readGrammar fn >>= evalGrammar showFirstFollow'
 
 -- ----------------------------------------
 
 readGrammar :: String -> IO Grammar
 readGrammar fn = toGrammar <$> readFile fn
 
-evalGrammar :: Grammar -> IO ()
-evalGrammar g = do
+evalGrammar :: (Grammar -> Lines) -> Grammar -> IO ()
+evalGrammar showFF g = do
   putStrLn . unlines $
     prettyGrammar g
     ++
-    showFirstFollow' g
+    nl
+    ++
+    showFF g
 
 showFirstFollow :: Grammar -> Lines
 showFirstFollow g =
@@ -36,7 +38,8 @@ showFirstFollow' g =
 
 -- ----------------------------------------
 
-test1 = readGrammar "examples/Stmt.cfg" >>= evalGrammar
+test1  = readGrammar "examples/Stmt.cfg" >>= evalGrammar showFirstFollow
+test1' = readGrammar "examples/Stmt.cfg" >>= evalGrammar showFirstFollow'
 
 -- ----------------------------------------
 
