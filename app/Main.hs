@@ -21,15 +21,18 @@ readGrammar fn = toGrammar <$> readFile fn
 
 evalGrammar :: Grammar -> IO ()
 evalGrammar g = do
-  putStrLn $ showGrammar g
-  putStrLn $ showFirstFollow g
+  putStrLn . unlines $
+    prettyGrammar g
+    ++
+    showFirstFollow' g
 
-showGrammar :: Grammar -> String
-showGrammar = unlines . prettyGrammar
-
-showFirstFollow :: Grammar -> String
+showFirstFollow :: Grammar -> Lines
 showFirstFollow g =
-  unlines $ prettyNullsFirstsFollows g $ nullsFirstsFollows g
+  prettyNullsFirstsFollows g $ nullsFirstsFollows g
+
+showFirstFollow' :: Grammar -> Lines
+showFirstFollow' g =
+  prettyNullsFirstsFollows' g $ nullsFirstsFollows' g
 
 -- ----------------------------------------
 

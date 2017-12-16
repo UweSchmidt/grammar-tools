@@ -1,12 +1,13 @@
 module CFG.Pretty where
 
-import           Prelude hiding (Word, map, iterate)
+import           Prelude hiding (Word, map, null)
 import qualified Prelude as P
 
-import           Data.Set
-import qualified Data.Set as S
+-- import           Data.Set
+-- import qualified Data.Set as S
 import qualified Data.Map as M
 import           Data.List (intercalate)
+import           Data.Set  (Set, null, empty, foldl', insert, map, member, singleton, union, toAscList)
 
 import CFG.Types
 
@@ -70,19 +71,15 @@ prettyNullables syms =
 
 prettyFirsts :: SymMap -> Lines
 prettyFirsts fsm =
-  return (tabL "First:" ++ "-- only nonterminals")
+  return "First:"
   ++
   (indent (tabL "") . prettySymMap $ fsm)
 
 prettyFollows :: SymSet -> SymMap -> Lines
-prettyFollows nullables fsm =
-  return (tabL "Follow:" ++ "-- " ++ hint)
+prettyFollows nulls fsm =
+  return "Follow:"
   ++
   (indent (tabL "") . prettySymMap $ fsm)
-  where
-    hint
-      | S.null nullables = "redundant, no epsilon productions"
-      | otherwise        = "only nonterminals"
 
 prettySymMap :: SymMap -> Lines
 prettySymMap fsm =
@@ -111,6 +108,49 @@ prettyNullsFirstsFollows
   ]
 
 -- ----------------------------------------
+
+prettyNullables' :: [SymSet] -> Lines
+prettyNullables' syms =
+  [ tabL "Nullables:" ]
+  ++
+  zipWith f (nums 0) syms
+  where
+    f i s = i ++ prettySymSet s
+
+prettyFirsts' :: [SymMap] -> Lines
+prettyFirsts' fsms =
+  return "First:"
+  ++
+  prettySymMapList fsms
+
+prettyFollows' :: SymSet -> [SymMap] -> Lines
+prettyFollows' nulls fsms =
+  return "Follow:"
+  ++
+  prettySymMapList fsms
+
+prettySymMapList :: [SymMap] -> Lines
+prettySymMapList fsms =
+  concat (zipWith f (nums 0) fsms)
+  where
+    f i s = indent i (prettySymMap s) ++ nl
+
+
+prettyNullsFirstsFollows' :: Grammar -> ([SymSet], [SymMap], [SymMap]) -> Lines
+prettyNullsFirstsFollows'
+  (n, t, rules, s)
+  (nulls', firsts', follows') =
+  concat
+  [ prettyNullables' nulls'
+  , nl
+  , prettyFirsts'  $ fmap (restrictSyms n) firsts'
+  , nl
+  , prettyFollows' nulls $ follows' -- fmap (restrictSyms n) follows'
+  ]
+  where
+    nulls = last nulls'
+
+-- ----------------------------------------
 --
 -- basic indent ops
 
@@ -136,5 +176,9 @@ alignR n xs =
 
 tabL = alignL 8
 tabR = alignR 8
+
+
+nums :: Int -> [String]
+nums n = fmap (\i -> tabL ("." ++ show i)) [n..]
 
 -- ----------------------------------------

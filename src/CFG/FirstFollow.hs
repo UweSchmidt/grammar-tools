@@ -173,8 +173,10 @@ followSets' nulls firsts (n, t, rules, s) =
               where
                 addFX :: Symbol -> SymMap -> SymMap
                 addFX y r
+                  -- optimization: terminals don't need to be processed
+                  | y `member` t     = emptySyms
                   | y `member` nulls = r' `unionSyms` r
-                  | otherwise            = r'
+                  | otherwise        = r'
                   where
                     r' = singletonSyms y (lookupSyms x fsyms)
 
@@ -193,12 +195,20 @@ followSets' nulls firsts (n, t, rules, s) =
                 rhs = map (head &&& tail) . init . tails
 
                 followRHS :: (Symbol, Word) -> SymMap -> SymMap
-                followRHS (y1, ys) r1 =
-                  insertSyms y1 (first nulls firsts ys) r1
+                followRHS (y1, ys) r1
+                  -- optimization: terminals don't need to be processed
+                  | y1 `member`t = r1
+                  | otherwise    = insertSyms y1 (first nulls firsts ys) r1
+
+    -- optimization: for parser construction
+    -- follow sets are only used for nontermnals
+    -- so the table of follow sets is restricted to n
+    -- this can reduce the # of iterations
+    -- and the work per rule
 
     initFollowSyms :: SymMap
     initFollowSyms =
-      forEachElem (\sym -> insertSyms sym empty) (n `union` t) emptySyms
+      forEachElem (\sym -> insertSyms sym empty) n emptySyms
 
 -- ----------------------------------------
 
