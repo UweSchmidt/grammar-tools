@@ -4,6 +4,7 @@ import CFG.Types
 import CFG.FirstFollow
 import CFG.Pretty
 import CFG.Parser (toGrammar)
+import CFG.LL1Parser
 
 import System.Environment (getArgs)
 
@@ -12,7 +13,9 @@ import System.Environment (getArgs)
 main :: IO ()
 main = do
   fn <- head <$> getArgs
-  readGrammar fn >>= evalGrammar showFirstFollow'
+  g  <- readGrammar fn
+  evalGrammar showFirstFollow' g
+  putStrLn $ unlines $ showLL1ParserTable g
 
 -- ----------------------------------------
 
@@ -35,6 +38,13 @@ showFirstFollow g =
 showFirstFollow' :: Grammar -> Lines
 showFirstFollow' g =
   prettyNullsFirstsFollows' g $ nullsFirstsFollows' g
+
+showLL1ParserTable :: Grammar -> Lines
+showLL1ParserTable g =
+  prettyLL1 $ toParserTable' nulls firstSets followSets g
+  where
+    (nulls, firstSets, followSets) = nullsFirstsFollows g
+    prettyLL1 = return . show
 
 -- ----------------------------------------
 

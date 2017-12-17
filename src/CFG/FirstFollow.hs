@@ -41,20 +41,6 @@ intermediates (x1 : xs1@(x2 : _))
 
 -- ----------------------------------------
 --
--- loop over a set of values, e.g. Symbols, Rules, ...
-
-forEachElem :: (v -> a -> a) -> Set v -> a -> a
-forEachElem op =
-  flip (foldl' (flip op))
-
--- loop over a list of values, e.g. Symbols, Words, ...
-
-forEach :: (v -> a -> a) -> [v] -> a -> a
-forEach op =
-  flip (P.foldr op)
-
--- ----------------------------------------
---
 -- the set of nullable symbols
 
 nullables :: Grammar -> SymSet

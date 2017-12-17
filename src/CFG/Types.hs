@@ -1,7 +1,7 @@
 module CFG.Types where
 
 import           Prelude hiding (Word)
-
+import qualified Prelude as P
 import           Data.Maybe (fromMaybe)
 import           Data.Set
 import           Data.Map (Map)
@@ -9,20 +9,42 @@ import qualified Data.Map as M
 
 -- ----------------------------------------
 
-type Symbol     = String
+type Symbol      = String
 
-type Word       = [Symbol]
+type Nonterminal = Symbol
+type Terminal    = Symbol
 
-type SymSet     = Set Symbol
+type Word        = [Symbol]
 
-type SymMap     = Map Symbol SymSet
+type SymSet      = Set Symbol
 
-type Rule       = (Symbol, Word)
+type SymMap      = Map Symbol SymSet
 
-type Rules      = Set Rule
+type Rule        = (Nonterminal, Word)
 
-type Grammar    = (SymSet, SymSet, Rules, Symbol)
+type Rules       = Set Rule
+
+type Grammar     = (SymSet, SymSet, Rules, Nonterminal)
 --                   N       T       P      S
+
+-- ----------------------------------------
+--
+-- loop over a set of values, e.g. Symbols, Rules, ...
+
+forEachElem :: (v -> a -> a) -> Set v -> a -> a
+forEachElem op =
+  flip (foldl' (flip op))
+
+-- loop over a list of values, e.g. Symbols, Words, ...
+
+forEach :: (v -> a -> a) -> [v] -> a -> a
+forEach op =
+  flip (P.foldr op)
+
+-- loop over a map of key value pairs
+
+forEachPair :: ((k, v) -> a -> a) -> Map k v -> a -> a
+forEachPair op = flip (M.foldWithKey (\k v r -> (k, v) `op` r))
 
 -- ----------------------------------------
 --
