@@ -7,7 +7,7 @@ import qualified Prelude as P
 -- import qualified Data.Set as S
 import qualified Data.Map as M
 import           Data.List (intercalate)
-import           Data.Set  (Set, null, empty, foldl', insert, map, member, singleton, union, toAscList)
+import           Data.Set  (Set, null, empty, foldl', insert, map, member, singleton, size, union, toAscList)
 
 import           CFG.Types
 import           CFG.LL1Parser
@@ -155,6 +155,8 @@ prettyNullsFirstsFollows'
 
 prettyLL1 :: LL1ParserTable' -> Lines
 prettyLL1 pt =
+  prettyConflicts
+  ++
   return "LL(1) parser table"
   ++
   concat (zipWith3 f nts ts rs)
@@ -165,7 +167,12 @@ prettyLL1 pt =
           indent (alignL (w1 `max` 7) n') $
           indent (alignL w2 t') $
           indent " : " $
+          ( if size rs > 1
+            then (++ ["^^^^^^^^^^^^^^"])
+            else id
+          ) $
           forEachElem (\ r l -> prettyRule w1 r ++ l) rs []
+        cnf = size rs > 1
 
     ptl  = M.toAscList pt
     keys = fmap fst ptl
@@ -177,6 +184,28 @@ prettyLL1 pt =
 
     nl' "" = []
     nl' _  = nl
+
+    cf   = conflicts pt
+    noc  = size cf
+    prettyConflicts
+      | null cf   = []
+      | otherwise = [ "Grammar G is not LL(1)"
+                    , show noc ++ " states with conflicts found:"
+                    , prettyPairs cf
+                    ]
+                    ++ nl
+
+prettyPairs :: Set (Nonterminal, Terminal) -> String
+prettyPairs nts =
+  concat
+  [ "{"
+  , intercalate ", " $ fmap prettyPair $ toAscList nts
+  , "}"
+  ]
+
+prettyPair :: (Nonterminal, Terminal) -> String
+prettyPair (n,t) =
+  "(" ++ n ++ ", " ++ t ++ ")"
 
 -- ----------------------------------------
 --

@@ -1,7 +1,7 @@
 module CFG.LL1Parser where
 
 import           Prelude hiding (Word)
-import           Data.Set (singleton, size, union)
+import           Data.Set (Set, empty, singleton, size, union, findMin)
 import           Data.Map (Map)
 import qualified Data.Map as M
 
@@ -61,13 +61,23 @@ toParserTable' nulls firstSets followSets (n, t, p, s) =
 -- test on LL1
 
 isLL1 :: LL1ParserTable' -> Bool
-isLL1 pt = forEachPair (\(_, s) b -> size s == 1 && b) pt True
+isLL1 pt =
+  forEachPair (\(_, rs) b -> size rs == 1 && b) pt True
+
+conflicts :: LL1ParserTable' -> Set (Nonterminal, Terminal)
+conflicts pt =
+  forEachPair ( \(nt, rs) s ->
+                  s `union` ( if size rs > 1
+                              then singleton nt
+                              else empty
+                            )
+              ) pt empty
 
 -- convert to simple parser table
 --
 -- pre: isLL1 pt
 
 toLL1 :: LL1ParserTable' -> LL1ParserTable
-toLL1 pt = undefined
+toLL1 pt = M.map findMin pt
 
 -- ----------------------------------------
