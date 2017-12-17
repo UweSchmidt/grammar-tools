@@ -44,7 +44,6 @@ showLL1ParserTable g =
   prettyLL1 $ toParserTable' nulls firstSets followSets g
   where
     (nulls, firstSets, followSets) = nullsFirstsFollows g
-    prettyLL1 = return . show
 
 -- ----------------------------------------
 

@@ -19,7 +19,8 @@ library
                        CFG.FirstFollow
                        CFG.Parser
                        CFG.Pretty
-                       
+                       CFG.LL1Parser
+                                              
   other-modules:
   
   build-depends:       base >= 4 && < 5,

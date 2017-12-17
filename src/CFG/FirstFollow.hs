@@ -10,7 +10,6 @@ import           Data.List (tails)
 
 import           CFG.Types
 import           CFG.Parser
-import           CFG.Pretty
 
 -- ----------------------------------------
 --

@@ -9,7 +9,8 @@ import qualified Data.Map as M
 import           Data.List (intercalate)
 import           Data.Set  (Set, null, empty, foldl', insert, map, member, singleton, union, toAscList)
 
-import CFG.Types
+import           CFG.Types
+import           CFG.LL1Parser
 
 -- ----------------------------------------
 
@@ -151,6 +152,33 @@ prettyNullsFirstsFollows'
     nulls = last nulls'
 
 -- ----------------------------------------
+
+prettyLL1 :: LL1ParserTable' -> Lines
+prettyLL1 pt =
+  return "LL(1) parser table"
+  ++
+  concat (zipWith3 f nts ts rs)
+  where
+    f n' t' rs = nl' n' ++ prls
+      where
+        prls =
+          indent (alignL (w1 `max` 7) n') $
+          indent (alignL w2 t') $
+          indent " : " $
+          forEachElem (\ r l -> prettyRule w1 r ++ l) rs []
+
+    ptl  = M.toAscList pt
+    keys = fmap fst ptl
+    nts  = remdups $ fmap fst keys
+    ts   = fmap snd keys
+    rs   = fmap snd ptl
+    w1   = 1 + maximum (fmap length nts)
+    w2   = 1 + maximum (fmap length ts )
+
+    nl' "" = []
+    nl' _  = nl
+
+-- ----------------------------------------
 --
 -- basic indent ops
 
@@ -177,8 +205,16 @@ alignR n xs =
 tabL = alignL 8
 tabR = alignR 8
 
-
 nums :: Int -> [String]
 nums n = fmap (\i -> tabL ("." ++ show i)) [n..]
+
+remdups :: [String] -> [String]
+remdups []     = []
+remdups xs@[_] = xs
+remdups (x1 : xs)
+  | x1 == x2   = x1 : "" : xs2
+  | otherwise  = x1 : xs'
+  where
+    xs'@(x2 : xs2) = remdups xs
 
 -- ----------------------------------------
