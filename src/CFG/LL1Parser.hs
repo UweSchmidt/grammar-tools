@@ -1,7 +1,9 @@
+{-# LANGUAGE PatternGuards #-}
+
 module CFG.LL1Parser where
 
 import           Prelude hiding (Word)
-import           Data.Set (Set, empty, singleton, size, union, findMin)
+import           Data.Set (Set, empty, member, singleton, size, union, findMin)
 import           Data.Map (Map)
 import qualified Data.Map as M
 
@@ -30,6 +32,9 @@ type LL1ParserTable  = LL1Table Rule
 
 emptyLL1 :: LL1Table a
 emptyLL1 = M.empty
+
+lookupLL1 :: Nonterminal -> Terminal -> LL1Table a -> Maybe a
+lookupLL1 n t = M.lookup (n, t)
 
 insRule :: Nonterminal -> SymSet -> Rule ->
            LL1ParserTable' -> LL1ParserTable'
@@ -79,5 +84,45 @@ conflicts pt =
 
 toLL1 :: LL1ParserTable' -> LL1ParserTable
 toLL1 pt = M.map findMin pt
+
+type Processed  = Word
+type Stack      = Word
+type Input      = Word
+
+type LLState    = (Processed, Stack)
+type LeftDerive = (LLState, Input)
+
+-- given a LL1 parser table, a grammar and an input
+-- construct a left derivation
+-- the not yet processed input is traced
+-- in the derivation list
+
+ll1Parse :: LL1ParserTable -> Grammar -> Input -> [(LLState, Input)]
+ll1Parse pt (n, t, p, s) input =
+  loop initState input
+  where
+    initState = ([], [s])
+
+    loop :: LLState -> Input -> [(LLState, Input)]
+    loop state inp@[]
+      = [(state, inp)]      -- success: derivation complete
+
+    loop state@(pw, stack@(top : stack')) inp@(lookahead : inp')
+      | top `member` n
+      , Just (_, rhs) <- lookupLL1 top lookahead pt
+          = loop' (pw, rhs ++ stack') inp
+
+      | top `member`n
+          = [(state, inp)]   -- syntax error
+
+      | top `member` t
+        &&
+        top == lookahead     -- shift
+          = loop' (lookahead : pw, stack') inp'
+
+      | otherwise
+          = [(state, inp)]   -- syntax error "top" symbol expected
+      where
+        loop' state' inp' = (state, inp) : loop state' inp'
 
 -- ----------------------------------------
