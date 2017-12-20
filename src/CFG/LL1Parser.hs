@@ -55,13 +55,17 @@ toParserTable' nulls firstSets followSets (n, t, p, s) =
 
     ins :: Rule -> LL1ParserTable' -> LL1ParserTable'
     ins rule@(x, ys) pt =
-      insRule x (lookaheads ys) rule pt
+      insRule x lookaheads rule pt
       where
-        -- epsilon production: lookup follow x
-        -- other productions: lookup first of RHS ys
+        -- lookup first of RHS ys union
+        -- if nullable RHS: lookup follow x
 
-        lookaheads [] = lookupSyms x followSets
-        lookaheads w  = first nulls firstSets ys
+        lookaheads = firstYS `union` followX
+          where
+            firstYS = first nulls firstSets ys
+            followX
+              | nullableWord nulls ys = lookupSyms x followSets
+              | otherwise             = empty
 
 -- test on LL1
 
