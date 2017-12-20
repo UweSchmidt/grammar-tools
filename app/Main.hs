@@ -16,6 +16,7 @@ data Args = Args
   { fileName :: String
   , fflog    :: Bool
   , extend   :: String
+  , input    :: String
   }
   deriving (Show)
 
@@ -39,6 +40,12 @@ args =
     <> metavar "START"
     <> help "extend grammar with rule \"START ::= S $\" before processing"
   )
+  <*> strOption
+  ( long "parse-input"
+    <> short 'p'
+    <> metavar "INPUT"
+    <> help "file (\"-\" for stdin) to be parsed"
+  )
 
 main :: IO ()
 main = main1 =<< execParser opts
@@ -59,22 +66,44 @@ main = main1 =<< execParser opts
 
 main1 :: Args -> IO ()
 main1 args = do
-  g  <- readGrammar (fileName args)
-  let g' = if not . null $ extend args
-           then extendGrammar (extend args) g
-           else g
+  g0  <- readGrammar (fileName args)
+  let g = if not . null $ extend args
+          then extendGrammar (extend args) g
+          else g0
 
-  evalGrammar showFirstFollow' g'
-  putStrLn $ unlines $ showLL1ParserTable g'
+  evalGrammar ( if fflog args
+                then showFirstFollow'
+                else showFirstFollow
+              ) g
+
+  let pt = ll1ParserTable g
+  prLines $ prettyLL1 pt
+
+  if null (input args)
+     ||
+     not (isLL1 pt)
+    then return ()
+    else do inp <- words <$> getInput (input args)
+            let ld = ll1Parse (toLL1 pt) g inp
+            prLines . prettyDerive $ ld
+              where
+                prettyDerive = undefined
 
 -- ----------------------------------------
+
+getInput :: String -> IO String
+getInput "-" = getContents
+getInput fn  = readFile fn
+
+prLines :: Lines -> IO ()
+prLines = putStrLn . unlines
 
 readGrammar :: String -> IO Grammar
 readGrammar fn = toGrammar <$> readFile fn
 
 evalGrammar :: (Grammar -> Lines) -> Grammar -> IO ()
-evalGrammar showFF g = do
-  putStrLn . unlines $
+evalGrammar showFF g =
+  prLines $
     prettyGrammar g
     ++
     nl
@@ -89,11 +118,6 @@ showFirstFollow' :: Grammar -> Lines
 showFirstFollow' g =
   prettyNullsFirstsFollows' g $ nullsFirstsFollows' g
 
-showLL1ParserTable :: Grammar -> Lines
-showLL1ParserTable g =
-  prettyLL1 $ toParserTable' nulls firstSets followSets g
-  where
-    (nulls, firstSets, followSets) = nullsFirstsFollows g
 
 -- ----------------------------------------
 

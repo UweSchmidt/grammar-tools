@@ -46,6 +46,12 @@ insRule n ts rule pt =
 
 -- ----------------------------------------
 
+ll1ParserTable :: Grammar -> LL1ParserTable'
+ll1ParserTable g =
+  toParserTable' nulls firstSets followSets g
+  where
+    (nulls, firstSets, followSets) = nullsFirstsFollows g
+
 toParserTable' :: SymSet -> SymMap -> SymMap ->
                   Grammar -> LL1ParserTable'
 
