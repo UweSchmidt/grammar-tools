@@ -76,18 +76,16 @@ main1 args = do
                 else showFirstFollow
               ) g
 
-  let pt = ll1ParserTable g
+  let pt = toLL1ParserTable' g
   prLines $ prettyLL1 pt
 
-  if null (input args)
-     ||
-     not (isLL1 pt)
-    then return ()
-    else do inp <- words <$> getInput (input args)
-            let ld = ll1Parse (toLL1 pt) g inp
-            prLines . prettyDerive $ ld
-              where
-                prettyDerive = undefined
+  -- try a parse when grammar LL(1) and some input given
+  case toLL1 pt of
+    Just pt1
+      | not . null $ input args = do
+          inp <- words <$> getInput (input args)
+          prLines . prettyLeftDerive $ ll1Parse pt1 g inp
+    _ -> return ()
 
 -- ----------------------------------------
 
@@ -118,11 +116,22 @@ showFirstFollow' :: Grammar -> Lines
 showFirstFollow' g =
   prettyNullsFirstsFollows' g $ nullsFirstsFollows' g
 
+showLL1ParserTable :: Grammar -> Lines
+showLL1ParserTable g =
+  prettyLL1 $ toLL1ParserTable' g
 
 -- ----------------------------------------
 
 test1  = readGrammar "examples/Stmt.cfg" >>= evalGrammar showFirstFollow
 test1' = readGrammar "examples/Stmt.cfg" >>= evalGrammar showFirstFollow'
+
+p1 = do
+  g1 <- readGrammar "examples/Expr2.cfg"
+  let Just pt1 = toLL1ParserTable g1
+  putStrLn $ unlines $ prettyLeftDerive $ ll1Parse pt1 g1 prog
+  where
+    prog = words
+           "id + id * ( id + num ) $"
 
 -- ----------------------------------------
 

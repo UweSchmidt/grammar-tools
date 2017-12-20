@@ -207,6 +207,35 @@ prettyPair :: (Nonterminal, Terminal) -> String
 prettyPair (n,t) =
   "(" ++ n ++ ", " ++ t ++ ")"
 
+prettyLeftDerive :: LeftDerive -> Lines
+prettyLeftDerive ds =
+  [ prettyStep "Processed" "Stack" (alignL len2 "Input")
+  , replicate len0 '-'
+    ++ "-+-" ++
+    replicate len1 '-'
+    ++ "-+-" ++
+    replicate len2 '-'
+  ]
+  ++
+  zipWith3 prettyStep prs sts ins
+  where
+    prs = fmap (prettyL . reverse . fst . fst) ds
+    sts = fmap (prettyL . snd . fst) ds
+    ins = fmap (prettyL . snd) ds
+
+    len0 = maximum (fmap length prs)
+    len1 = maximum (fmap length sts)
+    len2 = maximum (fmap length ins)
+
+    prettyStep w0 w1 w2 =
+      alignR len0 w0
+      ++ " | " ++
+      alignL len1 w1
+      ++ " | " ++
+      alignR len2 w2
+
+    prettyL = intercalate " "
+
 -- ----------------------------------------
 --
 -- basic indent ops
