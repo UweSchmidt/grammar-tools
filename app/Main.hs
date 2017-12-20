@@ -7,15 +7,65 @@ import CFG.Parser (toGrammar)
 import CFG.LL1Parser
 
 import System.Environment (getArgs)
+import Options.Applicative
+import Data.Monoid((<>))
 
 -- ----------------------------------------
 
+data Args = Args
+  { fileName :: String
+  , fflog    :: Bool
+  , extend   :: String
+  }
+  deriving (Show)
+
+args :: Parser Args
+args =
+  Args
+  <$> strOption
+  ( long "grammar"
+    <> short 'g'
+    <> metavar "GRAMMAR-FILE"
+    <> help "The file containing the context free grammar"
+  )
+  <*> switch
+  ( long "log-first-follow"
+    <> short 'l'
+    <> help "log the iterations when computing FIRST and FOLLOW sets"
+  )
+  <*> strOption
+  ( long "extend-grammar"
+    <> short 'e'
+    <> metavar "START"
+    <> help "extend grammar with rule \"START ::= S $\" before processing"
+  )
+
 main :: IO ()
-main = do
-  fn <- head <$> getArgs
-  g  <- readGrammar fn
-  evalGrammar showFirstFollow' g
-  putStrLn $ unlines $ showLL1ParserTable g
+main = main1 =<< execParser opts
+  where
+    opts = info (args <**> helper)
+      ( fullDesc
+        <> ( progDesc $
+             unlines
+             [ "Given a CFG, compute Nullable-, FIRST- and FOLLOW-sets,"
+             , "check LL(1) property, compute LL(1) parser table"
+             , "and parse input strings"
+             ]
+           )
+        <> header "cfg - a toolbox for processing context free grammars"
+      )
+
+-- ----------------------------------------
+
+main1 :: Args -> IO ()
+main1 args = do
+  g  <- readGrammar (fileName args)
+  let g' = if not . null $ extend args
+           then extendGrammar (extend args) g
+           else g
+
+  evalGrammar showFirstFollow' g'
+  putStrLn $ unlines $ showLL1ParserTable g'
 
 -- ----------------------------------------
 
