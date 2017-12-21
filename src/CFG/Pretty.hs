@@ -209,6 +209,12 @@ prettyPair (n,t) =
 
 prettyLeftDerive :: LeftDerive -> Lines
 prettyLeftDerive ds =
+  [ "Left derivation for input: " ++ head ins ]
+  ++
+  nl
+  ++
+  success
+  ++
   [ prettyStep "Processed" "Stack" (alignL len2 "Input")
   , replicate len0 '-'
     ++ "-+-" ++
@@ -235,6 +241,17 @@ prettyLeftDerive ds =
       alignR len2 w2
 
     prettyL = intercalate " "
+
+    success
+      | nullStack
+        &&
+        nullInp   =
+          ["successful parse"] ++ nl
+      | otherwise =
+          [ "syntax error detected" ] ++ nl
+      where
+        nullStack = P.null (last sts)
+        nullInp   = P.null (last ins)
 
 -- ----------------------------------------
 --
