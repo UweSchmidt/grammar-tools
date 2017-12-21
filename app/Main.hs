@@ -11,33 +11,39 @@ import Options.Applicative
 import Data.Monoid((<>))
 
 -- ----------------------------------------
+--
+-- the boring part: command line parsing
 
 data Args = Args
   { fflog    :: Bool
-  , extend   :: String
-  , input    :: String
-  , iword    :: String
-  , fileName :: String
+  , extend   :: Maybe String
+  , input    :: InpArg
+  , grFile   :: String
   }
   deriving (Show)
 
-args :: Parser Args
-args =
+data InpArg
+  = FromFile String
+  | FromStdin
+  | FromArg String
+  | NoInp
+  deriving (Show)
+
+argsParser :: Parser Args
+argsParser =
   Args
   <$> flag False True
   ( long "log-first-follow"
     <> short 'l'
     <> help "log the iterations when computing FIRST and FOLLOW sets"
   )
-  <*> (strOption
+  <*> (optional $ strOption
   ( long "extend-grammar"
-    -- <> short 'e'
+    <> short 'e'
     <> metavar "START"
-    -- <> value "S'"
     <> help "extend grammar with rule \"START ::= S $\" before processing"
   ))
-  <*> pure "xxx"
-  <*> pure "yyy"
+  <*> inpParser
   <*> strOption
   ( long "grammar"
     <> short 'g'
@@ -45,29 +51,37 @@ args =
     <> help "The file containing the context free grammar"
   )
 
--- Scheiss optparse
+inpParser :: Parser InpArg
+inpParser =
+   ( FromFile <$> strOption
+     ( long "prog-file"
+       <> short 'f'
+       <> metavar "FILE"
+       <> help "file to be parsed"
+     )
+   )
+   <|>
+   ( flag' FromStdin
+     ( long "stdin"
+       <> help "standard input to be parsed"
+     )
+   )
+   <|>
+   ( FromArg <$> strOption
+     ( long "prog"
+       <> short 'p'
+       <> help "argument to be parsed"
+     )
+   )
+   <|>
+   pure NoInp
 
-{-
-  <*> strOption
-  ( long "parse-input"
-    <> short 'p'
-    <> metavar "FILE"
-    <> value ""
-    <> help "file contents (\"-\" for stdin) to be parsed"
-  )
-  <*> strOption
-  ( long "parse-word"
-    <> short 'w'
-    <> metavar "INPUT"
-    <> value ""
-    <> help "input to be parsed, ignored when \"--parse-input\" is set"
-  )
--}
+-- ----------------------------------------
 
 main :: IO ()
 main = main1 =<< execParser opts
   where
-    opts = info (args <**> helper)
+    opts = info (argsParser <**> helper)
       ( fullDesc
         <> ( progDesc $
              unlines
@@ -80,13 +94,16 @@ main = main1 =<< execParser opts
       )
 
 -- ----------------------------------------
+--
+-- the real main program
 
 main1 :: Args -> IO ()
 main1 args = do
-  g0  <- readGrammar (fileName args)
-  let g = if not . null $ extend args
-          then extendGrammar (extend args) g
-          else g0
+  print args
+  g0  <- readGrammar (grFile args)
+  let g = case extend args of
+            Just s' -> extendGrammar s' g
+            _       -> g0
 
   evalGrammar ( if fflog args
                 then showFirstFollow'
@@ -98,20 +115,23 @@ main1 args = do
 
   -- try a parse when grammar LL(1) and some input given
   case toLL1 pt of
-    Just pt1
-      | (not . null $ input args)
-        ||
-        (not . null $ iword args)
-        -> do inp <- words <$> getInput (input args) (iword args)
-              prLines . prettyLeftDerive $ ll1Parse pt1 g inp
-    _ -> return ()
+    Just pt1 -> parseInp pt1 g (input args)
+    _        -> return ()
 
 -- ----------------------------------------
 
-getInput :: String -> String -> IO String
-getInput "" ws = return ws
-getInput "-" _ = getContents
-getInput fn  _ = readFile fn
+parseInp :: LL1ParserTable -> Grammar -> InpArg -> IO ()
+parseInp _ _ NoInp = return ()
+parseInp pt g iop  = do
+  inp <- words <$> getInput iop
+  prLines . prettyLeftDerive $ ll1Parse pt g inp
+
+
+getInput :: InpArg -> IO String
+getInput (FromFile fn) = readFile fn
+getInput FromStdin     = getContents
+getInput (FromArg v)   = return v
+getInput _             = return ""
 
 prLines :: Lines -> IO ()
 prLines = putStrLn . unlines
