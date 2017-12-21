@@ -55,7 +55,6 @@ ll1ParserTable g =
 
 toParserTable' :: SymSet -> SymMap -> SymMap ->
                   Grammar -> LL1ParserTable'
--}
 
 toLL1ParserTable :: Grammar -> Maybe LL1ParserTable
 toLL1ParserTable g
@@ -63,6 +62,7 @@ toLL1ParserTable g
   | otherwise = Nothing
   where
     pt = toLL1ParserTable' g
+-}
 
 toLL1ParserTable' :: Grammar -> LL1ParserTable'
 toLL1ParserTable' g = toLL1' nulls firstSets followSets g

@@ -13,39 +13,56 @@ import Data.Monoid((<>))
 -- ----------------------------------------
 
 data Args = Args
-  { fileName :: String
-  , fflog    :: Bool
+  { fflog    :: Bool
   , extend   :: String
   , input    :: String
+  , iword    :: String
+  , fileName :: String
   }
   deriving (Show)
 
 args :: Parser Args
 args =
   Args
-  <$> strOption
+  <$> flag False True
+  ( long "log-first-follow"
+    <> short 'l'
+    <> help "log the iterations when computing FIRST and FOLLOW sets"
+  )
+  <*> (strOption
+  ( long "extend-grammar"
+    -- <> short 'e'
+    <> metavar "START"
+    -- <> value "S'"
+    <> help "extend grammar with rule \"START ::= S $\" before processing"
+  ))
+  <*> pure "xxx"
+  <*> pure "yyy"
+  <*> strOption
   ( long "grammar"
     <> short 'g'
     <> metavar "GRAMMAR-FILE"
     <> help "The file containing the context free grammar"
   )
-  <*> switch
-  ( long "log-first-follow"
-    <> short 'l'
-    <> help "log the iterations when computing FIRST and FOLLOW sets"
-  )
-  <*> strOption
-  ( long "extend-grammar"
-    <> short 'e'
-    <> metavar "START"
-    <> help "extend grammar with rule \"START ::= S $\" before processing"
-  )
+
+-- Scheiss optparse
+
+{-
   <*> strOption
   ( long "parse-input"
     <> short 'p'
-    <> metavar "INPUT"
-    <> help "file (\"-\" for stdin) to be parsed"
+    <> metavar "FILE"
+    <> value ""
+    <> help "file contents (\"-\" for stdin) to be parsed"
   )
+  <*> strOption
+  ( long "parse-word"
+    <> short 'w'
+    <> metavar "INPUT"
+    <> value ""
+    <> help "input to be parsed, ignored when \"--parse-input\" is set"
+  )
+-}
 
 main :: IO ()
 main = main1 =<< execParser opts
@@ -82,16 +99,19 @@ main1 args = do
   -- try a parse when grammar LL(1) and some input given
   case toLL1 pt of
     Just pt1
-      | not . null $ input args = do
-          inp <- words <$> getInput (input args)
-          prLines . prettyLeftDerive $ ll1Parse pt1 g inp
+      | (not . null $ input args)
+        ||
+        (not . null $ iword args)
+        -> do inp <- words <$> getInput (input args) (iword args)
+              prLines . prettyLeftDerive $ ll1Parse pt1 g inp
     _ -> return ()
 
 -- ----------------------------------------
 
-getInput :: String -> IO String
-getInput "-" = getContents
-getInput fn  = readFile fn
+getInput :: String -> String -> IO String
+getInput "" ws = return ws
+getInput "-" _ = getContents
+getInput fn  _ = readFile fn
 
 prLines :: Lines -> IO ()
 prLines = putStrLn . unlines
@@ -124,14 +144,6 @@ showLL1ParserTable g =
 
 test1  = readGrammar "examples/Stmt.cfg" >>= evalGrammar showFirstFollow
 test1' = readGrammar "examples/Stmt.cfg" >>= evalGrammar showFirstFollow'
-
-p1 = do
-  g1 <- readGrammar "examples/Expr2.cfg"
-  let Just pt1 = toLL1ParserTable g1
-  putStrLn $ unlines $ prettyLeftDerive $ ll1Parse pt1 g1 prog
-  where
-    prog = words
-           "id + id * ( id + num ) $"
 
 -- ----------------------------------------
 
