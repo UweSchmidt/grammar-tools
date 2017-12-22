@@ -6,6 +6,7 @@ import           Data.Maybe (fromMaybe)
 import           Data.Set
 import           Data.Map (Map)
 import qualified Data.Map as M
+import           Data.Tree
 
 -- ----------------------------------------
 
@@ -26,6 +27,8 @@ type Rules       = Set Rule
 
 type Grammar     = (SymSet, SymSet, Rules, Nonterminal)
 --                   N       T       P      S
+
+type SyntaxTree  = Tree Symbol
 
 -- ----------------------------------------
 --
@@ -67,5 +70,16 @@ singletonSyms x s = insertSyms x s emptySyms
 
 restrictSyms :: SymSet -> SymMap -> SymMap
 restrictSyms s m = M.filterWithKey (\k _ -> k `member` s) m
+
+-- ----------------------------------------
+--
+-- SyntaxTree ops
+--
+
+leaf :: Symbol -> SyntaxTree
+leaf sy = Node sy []
+
+inner :: Symbol -> [SyntaxTree] -> SyntaxTree
+inner = Node
 
 -- ----------------------------------------

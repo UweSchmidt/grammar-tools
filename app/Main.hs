@@ -9,6 +9,7 @@ import CFG.LL1Parser
 import System.Environment (getArgs)
 import Options.Applicative
 import Data.Monoid((<>))
+import Data.Tree -- (drawTree)
 
 -- ----------------------------------------
 --
@@ -125,7 +126,15 @@ parseInp _ _ NoInp = return ()
 parseInp pt g iop  = do
   inp <- words <$> getInput iop
   prLines . prettyLeftDerive $ ll1Parse pt g inp
+  maybe (return ())
+        ( \ t -> do
+            putStrLn "\n The syntax tree:\n"
+            putStrLn . drawTree {- . reverseTree -} $ t
+        )
+        $ ll1SyntaxTree pt g inp
 
+reverseTree :: Tree a -> Tree a
+reverseTree (Node x ts) = Node x (fmap reverseTree $ reverse ts)
 
 getInput :: InpArg -> IO String
 getInput (FromFile fn) = readFile fn

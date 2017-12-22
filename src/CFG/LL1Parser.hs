@@ -6,6 +6,8 @@ import           Prelude hiding (Word)
 import           Data.Set (Set, empty, member, singleton, size, union, findMin)
 import           Data.Map (Map)
 import qualified Data.Map as M
+import           Data.Tree
+import           Control.Monad
 
 import           CFG.Types
 import           CFG.FirstFollow
@@ -157,5 +159,79 @@ ll1Parse pt (n, t, p, s) input =
 
     loop state inp
       = [(state, inp)]      -- failure: stack or input empty
+
+-- ----------------------------------------
+{-
+type LL1Parser = Word -> (SyntaxTree, Word)
+
+ll1SyntaxTree :: LL1ParserTable -> Grammar -> Input -> SyntaxTree
+ll1SyntaxTree pt (n, t, p, s) input
+  | [] <- rest = st
+  | otherwise  = error ("symbols following program")
+  where
+    (st, rest) = recDesc s input
+
+    recDesc :: Symbol -> LL1Parser
+    recDesc sym inp@(lookahead : inp')
+      | sym `member` t = checkSymbol sym lookahead inp'
+      | otherwise      = derive      sym lookahead inp
+    recDesc sym []     = error ("eof")
+
+    checkSymbol :: Terminal -> Symbol -> LL1Parser
+    checkSymbol sym lookahead inp'
+      | sym == lookahead = (leaf sym, inp')
+      | otherwise        = error (sym ++ " /= " ++ lookahead)
+
+    derive :: Symbol -> Symbol -> LL1Parser
+    derive nt lookahead inp =
+      case lookupLL1 nt lookahead pt  of
+        Just (x, ys) -> (inner x subtrees, inp')
+          where
+            (subtrees, inp') = rhs ys inp
+              where
+                rhs []        inp = ([],      inp)
+                rhs (x1 : xs) inp = (t1 : ts, inp2)
+                  where
+                    (t1, inp1) = recDesc x1 inp
+                    (ts, inp2) = rhs     xs inp1
+
+        Nothing      -> error ("illegal symbol: " ++ lookahead)
+-}
+
+type LL1Parser' = Word -> Maybe (SyntaxTree, Word)
+
+ll1SyntaxTree :: LL1ParserTable -> Grammar -> Input -> Maybe SyntaxTree
+ll1SyntaxTree pt (n, t, p, s) input = do
+  (st, rest) <- recDesc s input
+  case rest of
+    [] -> return st
+    _  -> mzero -- ("symbols following program")
+  where
+
+    recDesc :: Symbol -> LL1Parser'
+    recDesc sym inp@(lookahead : inp')
+      | sym `member` t = checkSymbol sym lookahead inp'
+      | otherwise      = derive      sym lookahead inp
+    recDesc sym []     = mzero --  ("eof")
+
+    checkSymbol :: Terminal -> Symbol -> LL1Parser'
+    checkSymbol sym lookahead inp'
+      | sym == lookahead = return (leaf sym, inp')
+      | otherwise        = mzero -- (sym ++ " /= " ++ lookahead)
+
+    derive :: Symbol -> Symbol -> LL1Parser'
+    derive nt lookahead inp =
+      case lookupLL1 nt lookahead pt  of
+        Just (x, ys) -> do
+          (subtrees, inp') <- rhs ys inp
+          return (inner x subtrees, inp')
+          where
+            rhs []        inp = return ([],      inp)
+            rhs (x1 : xs) inp = do
+              (t1, inp1) <- recDesc x1 inp
+              (ts, inp2) <- rhs     xs inp1
+              return (t1 : ts, inp2)
+
+        Nothing      -> mzero -- ("illegal symbol: " ++ lookahead)
 
 -- ----------------------------------------
