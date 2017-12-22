@@ -132,8 +132,6 @@ ll1Parse pt (n, t, p, s) input =
     initState = ([], [s])
 
     loop :: LLState -> Input -> LeftDerive
-    loop state inp@[]
-      = [(state, inp)]      -- success: derivation complete
 
     loop state@(pw, (top : stack1)) inp@(lookahead : inp1)
       | top `member` n
@@ -152,5 +150,12 @@ ll1Parse pt (n, t, p, s) input =
           = [(state, inp)]   -- syntax error "top" symbol expected
       where
         loop' state' inp' = (state, inp) : loop state' inp'
+
+
+    loop state@(_, []) inp@[]
+      = [(state, inp)]      -- success: derivation complete
+
+    loop state inp
+      = [(state, inp)]      -- failure: stack or input empty
 
 -- ----------------------------------------
