@@ -4,6 +4,7 @@ import CFG.Types
 import CFG.FirstFollow
 import CFG.Pretty
 import CFG.Parser (toGrammar)
+import CFG.Proper
 import CFG.LL1Parser
 
 import System.Environment (getArgs)
@@ -87,8 +88,8 @@ main = main1 =<< execParser opts
         <> ( progDesc $
              unlines
              [ "Given a CFG, compute Nullable-, FIRST- and FOLLOW-sets,"
-             , "check LL(1) property, compute LL(1) parser table"
-             , "and parse input strings"
+             , "check LL(1) property, compute LL(1) parser table,"
+             , "parse input strings and build syntax tree"
              ]
            )
         <> header "cfg - a toolbox for processing context free grammars"

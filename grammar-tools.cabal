@@ -15,11 +15,12 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     CFG.Types
-                       CFG.FirstFollow
+  exposed-modules:     CFG.FirstFollow
+                       CFG.LL1Parser
                        CFG.Parser
                        CFG.Pretty
-                       CFG.LL1Parser
+                       CFG.Proper
+                       CFG.Types
                                               
   other-modules:
   
