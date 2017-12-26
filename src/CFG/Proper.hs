@@ -57,7 +57,46 @@ removeUnreachableSymbols g@(n, t, rules, s)
     hasUnreachables = not $ null unreachableSyms
 
     n'     = n `difference` unreachableSyms
-    rules' = filter (\(x, ys) -> x `notMember` unreachableSyms)
+    rules' = filter (\(x, _ys) -> x `notMember` unreachableSyms)
+             rules
+
+-- ----------------------------------------
+
+productives :: Grammar -> SymSet
+productives = fixpoint . productives'
+
+productives' :: Grammar -> [SymSet]
+productives' (n, t, rules, s) =
+  iterate prodSyms t
+  where
+    prodSyms :: SymSet -> SymSet
+    prodSyms psys =
+      forEachElem pSym rules psys
+      where
+        pSym :: Rule -> SymSet -> SymSet
+        pSym (x, ys)
+          | all (`member` psys) ys = insert x
+          | otherwise              = id
+
+unproductives :: Grammar -> SymSet
+unproductives g@(n, t, rules, s) =
+  n `difference` productives g
+
+removeUnproductiveSymbols :: Grammar -> Grammar
+removeUnproductiveSymbols g@(n, t, rules, s)
+  | hasUnprod = (n'', t, rules', s)
+  | otherwise = g
+  where
+    unprodSyms = unproductives g
+    hasUnprod  = not $ null unprodSyms
+
+    n''    = s `insert` n'   -- start symbol must remain in N
+    n'     = n `difference` unprodSyms
+    rules' = filter
+             ( \(x, ys) -> x `notMember` unprodSyms
+                           &&
+                           all (`notMember` unprodSyms) ys
+             )
              rules
 
 -- ----------------------------------------
