@@ -42,7 +42,10 @@ prettyStart sy =
 
 prettyProductions :: Rules -> Lines
 prettyProductions rules =
-  indent (tabL "P:") $
+  indent (tabL "P:") $ prettyRules rules
+
+prettyRules :: Rules -> Lines
+prettyRules rules =
   concatMap (prettyRule $ ntWidth) $ toAscList rules
   where
     ntWidth = maximum (map (length . fst) rules)

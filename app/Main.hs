@@ -11,6 +11,7 @@ import System.Environment (getArgs)
 import Options.Applicative
 import Data.Monoid((<>))
 import Data.Tree -- (drawTree)
+import Data.Set (difference)
 
 -- ----------------------------------------
 --
@@ -19,6 +20,7 @@ import Data.Tree -- (drawTree)
 data Args = Args
   { fflog    :: Bool
   , extend   :: Maybe String
+  , clean    :: Bool
   , input    :: InpArg
   , grFile   :: String
   }
@@ -45,6 +47,12 @@ argsParser =
     <> metavar "START"
     <> help "extend grammar with rule \"START ::= S $\" before processing"
   ))
+  <*>
+  flag False True
+  ( long "cleanup-grammar"
+    <> short 'c'
+    <> help "remove unreachable and unproductive grammar rules"
+  )
   <*> inpParser
   <*> strOption
   ( long "grammar"
@@ -88,6 +96,7 @@ main = main1 =<< execParser opts
         <> ( progDesc $
              unlines
              [ "Given a CFG, compute Nullable-, FIRST- and FOLLOW-sets,"
+             , "remove unreachable and unproductive rules,"
              , "check LL(1) property, compute LL(1) parser table,"
              , "parse input strings and build syntax tree"
              ]
@@ -102,28 +111,72 @@ main = main1 =<< execParser opts
 main1 :: Args -> IO ()
 main1 args = do
   print args
-  g0  <- readGrammar (grFile args)
-  let g = case extend args of
-            Just s' -> extendGrammar s' g
-            _       -> g0
+  g0 <- readGrammar (grFile args)
+  g1 <- outGrammar  $ extGr g0
+  g2 <- outClean g1 $ cleanGr g1
+  outFirstFollow g2
+  pt <- outLL1      $ toLL1ParserTable' g2
+  outParseLL1 pt g2
 
-  evalGrammar ( if fflog args
-                then showFirstFollow'
-                else showFirstFollow
-              ) g
+  where
+    extGr
+      | Just s' <- extend args = extendGrammar s'
+      | otherwise              = id
 
-  let pt = toLL1ParserTable' g
-  prLines $ prettyLL1 pt
+    cleanGr
+      | clean args = removeUnreachableSymbols .
+                     removeUnproductiveSymbols
+      | otherwise  = id
 
-  -- try a parse when grammar LL(1) and some input given
-  case toLL1 pt of
-    Just pt1 -> parseInp pt1 g (input args)
-    _        -> return ()
+    outGrammar g = do
+      prLines $ prettyGrammar g ++ nl
+      return g
+
+    outClean g0@(n0, _, p0, _) g@(n, _, p, _)
+      | n0 == n
+        &&
+        p0 == p =
+          return g
+
+      | otherwise = do
+          prLines $
+            [ "unreachable or/and unproductive rules detected"
+            , "redundant nonterminals: "
+            , tabL " " ++ prettySymSet (n0 `difference` n)
+            , "redundant rules:"
+            ]
+            ++
+            indent (tabL " ") (prettyRules (p0 `difference` p))
+            ++ nl ++
+            [ "simplified grammar"]
+            ++ nl ++
+            prettyGrammar g
+          return g
+
+    outFirstFollow g
+      | fflog args =
+          prLines $ showFirstFollow' g
+      | otherwise =
+          prLines $ showFirstFollow g
+
+    outLL1 pt = do
+      prLines $ prettyLL1 pt
+      return pt
+
+    outParseLL1 pt g
+      | NoInp    <- input args = return ()     -- no input given
+      | Just pt1 <- toLL1 pt   = parseInp pt1 g (input args)
+      | otherwise              = return ()     -- no LL(1) grammar
 
 -- ----------------------------------------
 
+getInput :: InpArg -> IO String
+getInput (FromFile fn) = readFile fn
+getInput FromStdin     = getContents
+getInput (FromArg v)   = return v
+getInput _             = return ""
+
 parseInp :: LL1ParserTable -> Grammar -> InpArg -> IO ()
-parseInp _ _ NoInp = return ()
 parseInp pt g iop  = do
   inp <- words <$> getInput iop
   prLines . prettyLeftDerive $ ll1Parse pt g inp
@@ -137,26 +190,11 @@ parseInp pt g iop  = do
 reverseTree :: Tree a -> Tree a
 reverseTree (Node x ts) = Node x (fmap reverseTree $ reverse ts)
 
-getInput :: InpArg -> IO String
-getInput (FromFile fn) = readFile fn
-getInput FromStdin     = getContents
-getInput (FromArg v)   = return v
-getInput _             = return ""
-
 prLines :: Lines -> IO ()
 prLines = putStrLn . unlines
 
 readGrammar :: String -> IO Grammar
 readGrammar fn = toGrammar <$> readFile fn
-
-evalGrammar :: (Grammar -> Lines) -> Grammar -> IO ()
-evalGrammar showFF g =
-  prLines $
-    prettyGrammar g
-    ++
-    nl
-    ++
-    showFF g
 
 showFirstFollow :: Grammar -> Lines
 showFirstFollow g =
@@ -169,11 +207,6 @@ showFirstFollow' g =
 showLL1ParserTable :: Grammar -> Lines
 showLL1ParserTable g =
   prettyLL1 $ toLL1ParserTable' g
-
--- ----------------------------------------
-
-test1  = readGrammar "examples/Stmt.cfg" >>= evalGrammar showFirstFollow
-test1' = readGrammar "examples/Stmt.cfg" >>= evalGrammar showFirstFollow'
 
 -- ----------------------------------------
 
