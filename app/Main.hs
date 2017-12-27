@@ -21,6 +21,7 @@ data Args = Args
   { fflog    :: Bool
   , extend   :: Maybe String
   , clean    :: Bool
+  , noeps    :: Bool
   , input    :: InpArg
   , grFile   :: String
   }
@@ -43,7 +44,7 @@ argsParser =
   )
   <*> (optional $ strOption
   ( long "extend-grammar"
-    <> short 'e'
+    <> short 's'
     <> metavar "START"
     <> help "extend grammar with rule \"START ::= S $\" before processing"
   ))
@@ -52,6 +53,12 @@ argsParser =
   ( long "cleanup-grammar"
     <> short 'c'
     <> help "remove unreachable and unproductive grammar rules"
+  )
+  <*>
+  flag False True
+  ( long "remove-epsilon"
+    <> short 'e'
+    <> help "build epsilon free grammar"
   )
   <*> inpParser
   <*> strOption
@@ -97,6 +104,7 @@ main = main1 =<< execParser opts
              unlines
              [ "Given a CFG, compute Nullable-, FIRST- and FOLLOW-sets,"
              , "remove unreachable and unproductive rules,"
+             , "transform into epsilon free form,"
              , "check LL(1) property, compute LL(1) parser table,"
              , "parse input strings and build syntax tree"
              ]
@@ -111,12 +119,15 @@ main = main1 =<< execParser opts
 main1 :: Args -> IO ()
 main1 args = do
   print args
-  g0 <- readGrammar (grFile args)
-  g1 <- outGrammar  $ extGr g0
-  g2 <- outClean g1 $ cleanGr g1
-  outFirstFollow g2
-  pt <- outLL1      $ toLL1ParserTable' g2
-  outParseLL1 pt g2
+  g0 <- readGrammar   $ grFile args
+  g1 <- outGrammar    $ extGr g0
+  g2 <- outClean g1   $ cleanGr g1
+  g3 <- outEpsFree g2 $ epsilonFree g2
+
+  let g = g3
+  outFirstFollow g
+  pt <- outLL1        $ toLL1ParserTable' g
+  outParseLL1 pt g
 
   where
     extGr
@@ -141,14 +152,27 @@ main1 args = do
       | otherwise = do
           prLines $
             [ "unreachable or/and unproductive rules detected"
-            , "redundant nonterminals: "
+            , "redundant nonterminals"
             , tabL " " ++ prettySymSet (n0 `difference` n)
-            , "redundant rules:"
+            , "redundant rules"
             ]
             ++
             indent (tabL " ") (prettyRules (p0 `difference` p))
             ++ nl ++
             [ "simplified grammar"]
+            ++ nl ++
+            prettyGrammar g
+          return g
+
+    outEpsFree g0@(n0, _, p0, _) g@(n, _, p, _)
+      | n0 == n
+        &&
+        p0 == p =
+          return g
+      | otherwise = do
+          prLines $
+            [ "transform grammar into epsilon free form"
+            ]
             ++ nl ++
             prettyGrammar g
           return g
