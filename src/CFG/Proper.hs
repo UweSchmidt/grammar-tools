@@ -125,10 +125,7 @@ eliminateEpsProd nullSyms g@(n, t, rules, s) =
       forEach (\ys' -> insert (x, ys')) yss acc
       where
         yss :: [Word]
-        yss = P.filter notNull $ rhs ys
-          where
-            -- remove nullable right hand sides
-            notNull = not . nullableWord nullSyms
+        yss = P.filter (not . P.null) $ rhs ys
 
         rhs [] = return []
         rhs (y1 : ys') = do
