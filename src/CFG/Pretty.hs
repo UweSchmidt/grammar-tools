@@ -3,11 +3,13 @@ module CFG.Pretty where
 import           Prelude hiding (Word, map, null)
 import qualified Prelude as P
 
--- import           Data.Set
--- import qualified Data.Set as S
 import qualified Data.Map as M
 import           Data.List (intercalate)
-import           Data.Set  (Set, null, empty, foldl', insert, map, member, singleton, size, union, toAscList)
+import           Data.Set  ( Set, null, empty
+                           , foldl', insert
+                           , map, member
+                           , singleton, size, union, toAscList
+                           )
 
 import           CFG.Types
 import           CFG.LL1Parser
@@ -223,7 +225,7 @@ prettyLeftDerive ds =
     ++ "-+-" ++
     replicate len1 '-'
     ++ "-+-" ++
-    replicate len2 '-'
+    replicate (len2 `max` length "Input") '-'
   ]
   ++
   zipWith3 prettyStep prs sts ins
@@ -232,8 +234,8 @@ prettyLeftDerive ds =
     sts = fmap (prettyL . snd . fst) ds
     ins = fmap (prettyL . snd) ds
 
-    len0 = maximum (fmap length prs)
-    len1 = maximum (fmap length sts)
+    len0 = maximum (fmap length prs) `max` length "Processed"
+    len1 = maximum (fmap length sts) `max` length "Stack"
     len2 = maximum (fmap length ins)
 
     prettyStep w0 w1 w2 =

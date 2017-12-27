@@ -17,4 +17,4 @@ root dir of this project the commands
 
 1. cfg --help
 2. cfg -l -g examples/Mini.cfg
-3. cfg -l -g examples/Expr2.cfg -p "( num + num * num ) $"
+3. cfg -l -g examples/Expr2.cfg -L -p "( num + num * num ) $"

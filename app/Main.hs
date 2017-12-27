@@ -23,6 +23,7 @@ data Args = Args
   , clean     :: Bool
   , noeps     :: Bool
   , chainfree :: Bool
+  , ll1       :: Bool
   , input     :: InpArg
   , grFile    :: String
   }
@@ -68,6 +69,12 @@ argsParser =
     <> help ( "remove all rules of type A ::= B with nonterminal B"
               ++ ", implies \"--remove-epsilon\""
             )
+  )
+  <*>
+  flag False True
+  ( long "LL1"
+    <> short 'L'
+    <> help ("build LL(1) parser table and enable parsing")
   )
   <*> inpParser
   <*> strOption
@@ -134,10 +141,7 @@ main1 args = do
   g3 <- outEpsFree g2   $ epsFrGr g2
   g4 <- outChainFree g3 $ chnFrGr g3
 
-  let g = g4
-  outFirstFollow g
-  pt <- outLL1        $ toLL1ParserTable' g
-  outParseLL1 pt g
+  outParseTab g4 $ toLL1ParserTable' g4
 
   where
     extGr
@@ -153,6 +157,10 @@ main1 args = do
       | noeps args = epsilonFree
       | otherwise  = id
 
+    ll1Gr
+      | ll1 args  = undefined
+      | otherwise = id
+
     chnFrGr
       | chainfree args = chainFree
       | otherwise      = id
@@ -160,6 +168,7 @@ main1 args = do
     outGrammar g = do
       prLines $ prettyGrammar g ++ nl
       return g
+
 
     outClean g0@(n0, _, p0, _) g@(n, _, p, _)
       | n0 == n
@@ -208,6 +217,14 @@ main1 args = do
             prettyGrammar g
           return g
 
+    outParseTab g pt
+      | ll1 args = do
+          outFirstFollow g
+          prLines $ prettyLL1 pt
+          outParseLL1 pt g
+
+      | otherwise =
+          return ()
 
     outFirstFollow g
       | fflog args =
@@ -239,7 +256,7 @@ parseInp pt g iop  = do
   maybe (return ())
         ( \ t -> do
             putStrLn "\n The syntax tree:\n"
-            putStrLn . drawTree {- . reverseTree -} $ t
+            putStrLn . drawTree . reverseTree $ t
         )
         $ ll1SyntaxTree pt g inp
 
