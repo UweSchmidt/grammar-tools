@@ -3,8 +3,7 @@ module CFG.Proper where
 import           Prelude hiding (Word, filter, iterate, null)
 import qualified Prelude as P
 
-import           Control.Arrow ((&&&))
-
+import           Control.Applicative ((<|>))
 import           Data.Set  ( difference, empty, filter
                            , insert
                            , member, notMember
@@ -13,7 +12,7 @@ import           Data.Set  ( difference, empty, filter
 import           Data.List (tails)
 
 import           CFG.Types
-import           CFG.Parser
+import           CFG.FirstFollow (nullables, nullableWord)
 
 -- ----------------------------------------
 --
@@ -98,5 +97,47 @@ removeUnproductiveSymbols g@(n, t, rules, s)
                            all (`notMember` unprodSyms) ys
              )
              rules
+
+-- ----------------------------------------
+
+epsilonFree :: Grammar -> Grammar
+epsilonFree g@(n, t, rules, s)
+  | null nullSyms = g
+  | otherwise = eliminateEpsProd nullSyms g
+  where
+    nullSyms = nullables g
+
+eliminateEpsProd :: SymSet -> Grammar -> Grammar
+eliminateEpsProd nullSyms g@(n, t, rules, s) =
+  (n, t, rules', s)
+  where
+    rules' = reAddS $ forEachElem epsFree rules empty
+
+    -- if nullable(s) rule "S ::= epsilon" must be added
+    -- to the set of rules, so epsilon is member of (L(G))
+
+    reAddS | s `member` nullSyms = insert (s, [])
+           | otherwise           = id
+
+    epsFree :: Rule -> Rules -> Rules
+    epsFree (_, []) acc = acc              -- remove epsilon production
+    epsFree (x, ys) acc =
+      forEach (\ys' -> insert (x, ys')) yss acc
+      where
+        yss :: [Word]
+        yss = P.filter notNull $ rhs ys
+          where
+            -- remove nullable right hand sides
+            notNull = not . nullableWord nullSyms
+
+        rhs [] = return []
+        rhs (y1 : ys') = do
+          ys'' <- rhs ys'
+          if y1 `member` nullSyms
+            then ( return (y1 : ys'')
+                   <|>
+                   return ys''
+                 )
+            else   return (y1 : ys'')
 
 -- ----------------------------------------
