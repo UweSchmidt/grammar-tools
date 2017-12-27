@@ -1,6 +1,6 @@
 module CFG.Types where
 
-import           Prelude hiding (Word, iterate)
+import           Prelude hiding (Word, null, iterate)
 import qualified Prelude as P
 import           Data.Maybe (fromMaybe)
 import           Data.Set
@@ -89,6 +89,15 @@ insertSyms = M.insertWith union
 unionSyms :: SymMap -> SymMap -> SymMap
 unionSyms = M.unionWith union
 
+diffSyms :: SymMap -> SymMap -> SymMap
+diffSyms = M.differenceWith diff
+  where
+    diff s1 s2
+      | null s'   = Nothing
+      | otherwise = Just s'
+      where
+        s' = s1 `difference` s2
+
 emptySyms :: SymMap
 emptySyms = M.empty
 
@@ -97,6 +106,27 @@ singletonSyms x s = insertSyms x s emptySyms
 
 restrictSyms :: SymSet -> SymMap -> SymMap
 restrictSyms s m = M.filterWithKey (\k _ -> k `member` s) m
+
+joinSyms :: SymMap -> SymMap -> SymMap
+joinSyms m1 m2 =
+  forEachPair f1 m1 emptySyms
+  where
+    f1 (x, ys) = forEachElem f2 ys
+      where
+        f2 y = insertSyms x (lookupSyms y m2)
+
+transClosureSyms :: SymMap -> SymMap
+transClosureSyms =
+  fixpoint . iterate step
+  where
+    step m = m `unionSyms` (m `joinSyms` m)
+
+reflexSyms :: SymMap -> SymMap
+reflexSyms m = forEachPair rf m emptySyms
+  where
+    rf (x, ys)
+      | x `member` ys = insertSyms x (singleton x)
+      | otherwise     = id
 
 -- ----------------------------------------
 --

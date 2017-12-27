@@ -7,12 +7,13 @@ import           Control.Applicative ((<|>))
 import           Data.Set  ( difference, empty, filter
                            , insert
                            , member, notMember
-                           , null, singleton
+                           , null, singleton, union
                            )
-import           Data.List (tails)
 
 import           CFG.Types
-import           CFG.FirstFollow (nullables, nullableWord)
+import           CFG.FirstFollow (nullables)
+
+-- import Debug.Trace
 
 -- ----------------------------------------
 --
@@ -136,5 +137,62 @@ eliminateEpsProd nullSyms g@(n, t, rules, s) =
                    return ys''
                  )
             else   return (y1 : ys'')
+
+-- ----------------------------------------
+
+chainFree :: Grammar -> Grammar
+chainFree g@(n, t, rules, s)
+  | s0 == nullSyms = withoutEps
+  | null nullSyms  = eliminateChainRules g
+  | otherwise      = chainFree $ eliminateEpsProd nullSyms g
+  where
+    nullSyms = nullables g
+    s0       = singleton s
+    eps      = singleton (s, [])
+
+    withoutEps = (n', t', rules' `union` eps, s')
+      where
+        (n', t', rules', s') =
+          chainFree (n, t, rules `difference` eps, s)
+
+eliminateChainRules :: Grammar -> Grammar
+eliminateChainRules (n, t, rules, s) =
+{-
+  traceShow chainRules $
+  traceShow noChainRules $
+-}
+  (n, t, rules', s)
+  where
+    chainRules, noChainRules :: Rules
+    chainRules   = filter isChain rules
+    noChainRules = rules `difference` chainRules
+
+    rules' :: Rules
+    rules' = forEachPair addCR chainClosure noChainRules
+      where
+        addCR :: (Symbol, SymSet) -> Rules -> Rules
+        addCR (x, ys) = forEachElem add noChainRules
+          where
+            add :: Rule -> Rules -> Rules
+            add (x', ys')
+              | x' `member` ys
+                &&
+                x' /= x        = insert (x, ys')
+              | otherwise      = id
+
+    isChain :: Rule -> Bool
+    isChain (_, [x]) = x `member` n
+    isChain _        = False
+
+    chainClosure :: SymMap
+    chainClosure =
+      {- traceShowId $ -} m1 `diffSyms` reflexSyms m1
+      where
+        m0, m1 :: SymMap
+        m0 = forEachElem ins chainRules emptySyms
+
+        m1 =  transClosureSyms m0
+
+        ins (x, (y:_)) = insertSyms x (singleton y)
 
 -- ----------------------------------------

@@ -18,12 +18,13 @@ import Data.Set (difference)
 -- the boring part: command line parsing
 
 data Args = Args
-  { fflog    :: Bool
-  , extend   :: Maybe String
-  , clean    :: Bool
-  , noeps    :: Bool
-  , input    :: InpArg
-  , grFile   :: String
+  { fflog     :: Bool
+  , extend    :: Maybe String
+  , clean     :: Bool
+  , noeps     :: Bool
+  , chainfree :: Bool
+  , input     :: InpArg
+  , grFile    :: String
   }
   deriving (Show)
 
@@ -59,6 +60,14 @@ argsParser =
   ( long "remove-epsilon"
     <> short 'e'
     <> help "build epsilon free grammar"
+  )
+  <*>
+  flag False True
+  ( long "chain-free"
+    <> short 'C'
+    <> help ( "remove all rules of type A ::= B with nonterminal B"
+              ++ ", implies \"--remove-epsilon\""
+            )
   )
   <*> inpParser
   <*> strOption
@@ -119,12 +128,13 @@ main = main1 =<< execParser opts
 main1 :: Args -> IO ()
 main1 args = do
   print args
-  g0 <- readGrammar   $ grFile args
-  g1 <- outGrammar    $ extGr g0
-  g2 <- outClean g1   $ cleanGr g1
-  g3 <- outEpsFree g2 $ epsilonFree g2
+  g0 <- readGrammar     $ grFile args
+  g1 <- outGrammar      $ extGr g0
+  g2 <- outClean g1     $ cleanGr g1
+  g3 <- outEpsFree g2   $ epsFrGr g2
+  g4 <- outChainFree g3 $ chnFrGr g3
 
-  let g = g3
+  let g = g4
   outFirstFollow g
   pt <- outLL1        $ toLL1ParserTable' g
   outParseLL1 pt g
@@ -138,6 +148,14 @@ main1 args = do
       | clean args = removeUnreachableSymbols .
                      removeUnproductiveSymbols
       | otherwise  = id
+
+    epsFrGr
+      | noeps args = epsilonFree
+      | otherwise  = id
+
+    chnFrGr
+      | chainfree args = chainFree
+      | otherwise      = id
 
     outGrammar g = do
       prLines $ prettyGrammar g ++ nl
@@ -176,6 +194,20 @@ main1 args = do
             ++ nl ++
             prettyGrammar g
           return g
+
+    outChainFree g0@(n0, _, p0, _) g@(n, _, p, _)
+      | n0 == n
+        &&
+        p0 == p =
+          return g
+      | otherwise = do
+          prLines $
+            [ "transform grammar into chain free form"
+            ]
+            ++ nl ++
+            prettyGrammar g
+          return g
+
 
     outFirstFollow g
       | fflog args =

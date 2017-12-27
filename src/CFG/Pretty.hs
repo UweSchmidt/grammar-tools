@@ -193,7 +193,7 @@ prettyLL1 pt =
     prettyConflicts
       | null cf   = []
       | otherwise = [ "Grammar G is not LL(1)"
-                    , show noc ++ " states with conflicts found:"
+                    , show noc ++ " state(s) with conflicts found:"
                     , prettyPairs cf
                     ]
                     ++ nl
