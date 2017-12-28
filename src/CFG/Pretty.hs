@@ -184,7 +184,7 @@ prettyLL1 pt =
             then (++ ["^^^^^^^^^^^^^^"])
             else id
           ) $
-          forEachElem (\ r l -> prettyRule w1 r ++ l) rs []
+          forEachRule (\ r l -> prettyRule w1 r ++ l) rs []
         cnf = S.size rs > 1
 
     ptl  = M.toAscList pt

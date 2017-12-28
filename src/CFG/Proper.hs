@@ -35,7 +35,7 @@ reachables' (n, t, rules, s) =
   where
     reachableSyms :: SymSet -> SymSet
     reachableSyms rsys =
-      forEachElem rSym rules rsys
+      forEachRule rSym rules rsys
       where
         rSym :: Rule -> SymSet -> SymSet
         rSym (x, ys)
@@ -69,7 +69,7 @@ productives' (n, t, rules, s) =
   where
     prodSyms :: SymSet -> SymSet
     prodSyms psys =
-      forEachElem pSym rules psys
+      forEachRule pSym rules psys
       where
         pSym :: Rule -> SymSet -> SymSet
         pSym (x, ys)
@@ -110,7 +110,7 @@ eliminateEpsProd :: SymSet -> Grammar -> Grammar
 eliminateEpsProd nullSyms g@(n, t, rules, s) =
   (n, t, rules', s)
   where
-    rules' = reAddS $ forEachElem epsFree rules S.empty
+    rules' = reAddS $ forEachRule epsFree rules S.empty
 
     -- if nullable(s) rule "S ::= epsilon" must be added
     -- to the set of rules, so epsilon is member of (L(G))
@@ -169,7 +169,7 @@ eliminateChainRules (n, t, rules, s) =
     rules' = R.forEachS addCR chainClosure noChainRules
       where
         addCR :: Symbol -> SymSet -> Rules -> Rules
-        addCR x ys = forEachElem add noChainRules
+        addCR x ys = forEachRule add noChainRules
           where
             add :: Rule -> Rules -> Rules
             add (x', ys')
@@ -187,7 +187,7 @@ eliminateChainRules (n, t, rules, s) =
       {- traceShowId $ -} m1 `R.difference` R.reflex m1
       where
         m0, m1 :: SymMap
-        m0 = forEachElem ins chainRules R.empty
+        m0 = forEachRule ins chainRules R.empty
         m1 = R.trClosure m0
 
         ins (x, (y:_)) = R.insert x y

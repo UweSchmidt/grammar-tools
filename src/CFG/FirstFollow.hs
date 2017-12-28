@@ -30,7 +30,7 @@ nullables' (n, t, rules, s) =
   where
     nullSyms :: SymSet -> SymSet
     nullSyms nsys =
-      forEachElem nullSym rules nsys
+      forEachRule nullSym rules nsys
       where
         nullSym :: Rule -> SymSet -> SymSet
         nullSym (x, ys) acc
@@ -66,7 +66,7 @@ firstSets' nulls (n, t, rules, s) =
   where
     firstSyms :: SymMap -> SymMap
     firstSyms fsyms =
-      forEachElem firstSym rules fsyms
+      forEachRule firstSym rules fsyms
       where
         -- insert first set of RHS into firstSyms of LHS
         firstSym :: Rule -> SymMap -> SymMap
@@ -81,10 +81,10 @@ firstSets' nulls (n, t, rules, s) =
       where
         initT, initN :: SymMap
         initT =
-          forEachElem (\sym -> R.insertS sym (S.singleton sym)) t R.empty
+          forEachSymbol (\sym -> R.insertS sym (S.singleton sym)) t R.empty
 
         initN =
-          forEachElem (\sym -> R.insertS sym S.empty) n R.empty
+          forEachSymbol (\sym -> R.insertS sym S.empty) n R.empty
 
 -- take a word [y1,y2,..,yn], e.g. a right hand side
 -- of a grammar rule, and compute the FIRST set
@@ -97,7 +97,7 @@ first nulls fSets w =
     firstSym :: Symbol -> SymSet -> SymSet
     firstSym x r
       | x `S.member` nulls = fx `S.union` r
-      | otherwise        = fx
+      | otherwise          = fx
       where
         fx = R.lookupS x fSets
 
@@ -117,7 +117,7 @@ followSets' nulls firsts (n, t, rules, s) =
   where
     followSyms :: SymMap -> SymMap
     followSyms fsyms =
-      forEachElem followSym rules fsyms
+      forEachRule followSym rules fsyms
       where
         followSym :: Rule -> SymMap -> SymMap
         followSym (x, ys) = followX (reverse ys) . followYS ys
@@ -169,7 +169,7 @@ followSets' nulls firsts (n, t, rules, s) =
 
     initFollowSyms :: SymMap
     initFollowSyms =
-      forEachElem (\sym -> R.insertS sym S.empty) n R.empty
+      forEachSymbol (\sym -> R.insertS sym S.empty) n R.empty
 
 -- ----------------------------------------
 

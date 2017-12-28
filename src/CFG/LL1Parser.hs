@@ -45,7 +45,7 @@ lookupLL1 n t = M.lookup (n, t)
 insRule :: Nonterminal -> SymSet -> Rule ->
            LL1ParserTable' -> LL1ParserTable'
 insRule n ts rule pt =
-  forEachElem (\t -> addRule n t rule) ts pt
+  forEachSymbol (\t -> addRule n t rule) ts pt
   where
     addRule n t rule pt' =
       M.insertWith S.union (n, t) (S.singleton rule) pt'
@@ -77,8 +77,8 @@ toLL1ParserTable' g = toLL1' nulls firstSets followSets g
 
 toLL1' :: SymSet -> SymMap -> SymMap ->
           Grammar -> LL1ParserTable'
-toLL1' nulls firstSets followSets (n, t, p, s) =
-  forEachElem ins p emptyLL1
+toLL1' nulls firstSets followSets (n, t, rules, s) =
+  forEachRule ins rules emptyLL1
   where
 
     ins :: Rule -> LL1ParserTable' -> LL1ParserTable'
@@ -99,16 +99,16 @@ toLL1' nulls firstSets followSets (n, t, p, s) =
 
 isLL1 :: LL1ParserTable' -> Bool
 isLL1 pt =
-  forEachPair (\_nt rs b -> S.size rs == 1 && b) pt True
+  forEachKV (\_nt rs b -> S.size rs == 1 && b) pt True
 
 conflicts :: LL1ParserTable' -> Set (Nonterminal, Terminal)
 conflicts pt =
-  forEachPair ( \nt rs s ->
-                  s `S.union` ( if S.size rs > 1
+  forEachKV ( \nt rs s ->
+                s `S.union` ( if S.size rs > 1
                               then S.singleton nt
                               else S.empty
                             )
-              ) pt S.empty
+            ) pt S.empty
 
 -- convert to simple parser table
 --

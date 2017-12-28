@@ -76,12 +76,20 @@ forEach = flip . P.foldr
 
 -- loop over a map of key value pairs
 
-forEachPair :: (k -> v -> a -> a) -> Map k v -> a -> a
-forEachPair = flip . M.foldWithKey
+forEachKV :: (k -> v -> a -> a) -> Map k v -> a -> a
+forEachKV = flip . M.foldWithKey
 
-{-# INLINE forEachElem #-}
-{-# INLINE forEach     #-}
-{-# INLINE forEachPair #-}
+forEachRule :: (Rule -> a -> a) -> Rules -> a -> a
+forEachRule = forEachElem
+
+forEachSymbol :: (Symbol -> a -> a) -> SymSet -> a -> a
+forEachSymbol = forEachElem
+
+{-# INLINE forEachElem   #-}
+{-# INLINE forEach       #-}
+{-# INLINE forEachKV     #-}
+{-# INLINE forEachSymbol #-}
+{-# INLINE forEachRule   #-}
 
 -- ----------------------------------------
 --
