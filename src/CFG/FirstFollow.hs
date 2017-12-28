@@ -1,13 +1,15 @@
 module CFG.FirstFollow where
 
 import           Prelude hiding (Word, iterate)
-import qualified Prelude as P
 
 import           Control.Arrow ((&&&))
 
-import           Data.Set  (Set, empty, foldl', insert, member, singleton, union)
+import           Data.Set  (Set)
 import           Data.List (tails)
+
+import qualified Prelude       as P
 import qualified Data.Relation as R
+import qualified Data.Set      as S
 
 import           CFG.Types
 import           CFG.Parser
@@ -24,7 +26,7 @@ nullables = fixpoint . nullables'
 
 nullables' :: Grammar -> [SymSet]
 nullables' (n, t, rules, s) =
-  iterate nullSyms empty
+  iterate nullSyms S.empty
   where
     nullSyms :: SymSet -> SymSet
     nullSyms nsys =
@@ -36,7 +38,7 @@ nullables' (n, t, rules, s) =
           -- nullable right hand side found
           -- insert left hand side into the result
 
-          | nullableWord nsys ys = insert x acc
+          | nullableWord nsys ys = S.insert x acc
           | otherwise            =          acc
 
 
@@ -44,7 +46,7 @@ nullables' (n, t, rules, s) =
 
 nullableWord :: SymSet -> Word -> Bool
 nullableWord nulls w =
-  forEach (\ y r -> y `member` nulls && r) w True
+  forEach (\ y r -> y `S.member` nulls && r) w True
 
 -- ----------------------------------------
 --
@@ -69,20 +71,20 @@ firstSets' nulls (n, t, rules, s) =
         -- insert first set of RHS into firstSyms of LHS
         firstSym :: Rule -> SymMap -> SymMap
         firstSym (x, ys) acc =
-          insertSyms x (first nulls fsyms ys) acc
+          R.insertS x (first nulls fsyms ys) acc
 
     -- init first map
     -- for all terminal syms t: first(t) = {t}
     -- for all nonterminals  n: first(n) = {}
     initFirstSyms :: SymMap
-    initFirstSyms = initT `unionSyms` initN
+    initFirstSyms = initT `R.union` initN
       where
         initT, initN :: SymMap
         initT =
-          forEachElem (\sym -> insertSyms sym (singleton sym)) t emptySyms
+          forEachElem (\sym -> R.insertS sym (S.singleton sym)) t R.empty
 
         initN =
-          forEachElem (\sym -> insertSyms sym empty) n emptySyms
+          forEachElem (\sym -> R.insertS sym S.empty) n R.empty
 
 -- take a word [y1,y2,..,yn], e.g. a right hand side
 -- of a grammar rule, and compute the FIRST set
@@ -90,14 +92,14 @@ firstSets' nulls (n, t, rules, s) =
 
 first :: SymSet -> SymMap -> Word -> SymSet
 first nulls fSets w =
-  forEach firstSym w empty
+  forEach firstSym w S.empty
   where
     firstSym :: Symbol -> SymSet -> SymSet
     firstSym x r
-      | x `member` nulls = fx `union` r
+      | x `S.member` nulls = fx `S.union` r
       | otherwise        = fx
       where
-        fx = lookupSyms x fSets
+        fx = R.lookupS x fSets
 
 -- ----------------------------------------
 --
@@ -128,16 +130,16 @@ followSets' nulls firsts (n, t, rules, s) =
 
             followX :: Word -> SymMap -> SymMap
             followX ys' sm =
-              forEach addFX ys' emptySyms `unionSyms` sm
+              forEach addFX ys' R.empty `R.union` sm
               where
                 addFX :: Symbol -> SymMap -> SymMap
                 addFX y r
                   -- optimization: terminals don't need to be processed
-                  | y `member` t     = emptySyms
-                  | y `member` nulls = r' `unionSyms` r
+                  | y `S.member` t     = R.empty
+                  | y `S.member` nulls = r' `R.union` r
                   | otherwise        = r'
                   where
-                    r' = singletonSyms y (lookupSyms x fsyms)
+                    r' = R.singletonS y (R.lookupS x fsyms)
 
             -- extend follow(y1) by first(y2) and
             -- in case of nullable(y2) the y3 and so on
@@ -156,8 +158,8 @@ followSets' nulls firsts (n, t, rules, s) =
                 followRHS :: (Symbol, Word) -> SymMap -> SymMap
                 followRHS (y1, ys) r1
                   -- optimization: terminals don't need to be processed
-                  | y1 `member`t = r1
-                  | otherwise    = insertSyms y1 (first nulls firsts ys) r1
+                  | y1 `S.member` t = r1
+                  | otherwise       = R.insertS y1 (first nulls firsts ys) r1
 
     -- optimization: for parser construction
     -- follow sets are only used for nontermnals
@@ -167,7 +169,7 @@ followSets' nulls firsts (n, t, rules, s) =
 
     initFollowSyms :: SymMap
     initFollowSyms =
-      forEachElem (\sym -> insertSyms sym empty) n emptySyms
+      forEachElem (\sym -> R.insertS sym S.empty) n R.empty
 
 -- ----------------------------------------
 
@@ -198,8 +200,8 @@ extendGrammar eofSy (n, t, p, s) =
   (n', t', p', s')
   where
     s' = s ++ "\'"
-    n' = insert s' n
-    t' = insert eofSy t
-    p' = insert (s', [s, eofSy]) p
+    n' = S.insert s' n
+    t' = S.insert eofSy t
+    p' = S.insert (s', [s, eofSy]) p
 
 -- ----------------------------------------

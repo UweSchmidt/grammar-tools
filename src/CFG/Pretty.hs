@@ -1,16 +1,21 @@
 module CFG.Pretty where
 
 import           Prelude hiding (Word, map, null)
-import qualified Prelude as P
 
-import qualified Data.Map as M
 import           Data.List (intercalate)
-import           Data.Set  ( Set, null, empty
-                           , foldl', insert
-                           , map, member
-                           , singleton, size, union, toAscList
-                           )
+import           Data.Set  ( Set)
+
+-- , null, empty
+--                           , foldl', insert
+--                           , map, member
+--                           , singleton, size, union, toAscList
+--                           )
+
+import qualified Prelude       as P
+import qualified Data.Map      as M
 import qualified Data.Relation as R
+import qualified Data.Set      as S
+
 import           CFG.Types
 import           CFG.LL1Parser
 
@@ -48,9 +53,9 @@ prettyProductions rules =
 
 prettyRules :: Rules -> Lines
 prettyRules rules =
-  concatMap (prettyRule $ ntWidth) $ toAscList rules
+  concatMap (prettyRule $ ntWidth) $ S.toAscList rules
   where
-    ntWidth = maximum (map (length . fst) rules)
+    ntWidth = maximum (S.map (length . fst) rules)
 
 prettyRule :: Int -> Rule -> Lines
 prettyRule wx (x, ys) =
@@ -65,7 +70,7 @@ prettySymSet :: SymSet -> String
 prettySymSet syms =
   concat
   [ "{"
-  , intercalate ", " $ toAscList syms
+  , intercalate ", " $ S.toAscList syms
   , "}"
   ]
 
@@ -108,9 +113,9 @@ prettyNullsFirstsFollows
   concat
   [ prettyNullables nulls
   , nl
-  , prettyFirsts  $ restrictSyms n firsts
+  , prettyFirsts  $ onlyNTs n firsts
   , nl
-  , prettyFollows nulls $ restrictSyms n follows
+  , prettyFollows nulls $ onlyNTs n follows
   ]
 
 -- ----------------------------------------
@@ -149,12 +154,15 @@ prettyNullsFirstsFollows'
   concat
   [ prettyNullables' nulls'
   , nl
-  , prettyFirsts'  $ fmap (restrictSyms n) firsts'
+  , prettyFirsts'  $ fmap (onlyNTs n) firsts'
   , nl
   , prettyFollows' nulls $ follows' -- fmap (restrictSyms n) follows'
   ]
   where
     nulls = last nulls'
+
+onlyNTs :: SymSet -> SymMap -> SymMap
+onlyNTs s = R.filter (\ k _ -> k `S.member` s)
 
 -- ----------------------------------------
 
@@ -172,12 +180,12 @@ prettyLL1 pt =
           indent (alignL (w1 `max` 7) n') $
           indent (alignL w2 t') $
           indent " : " $
-          ( if size rs > 1
+          ( if S.size rs > 1
             then (++ ["^^^^^^^^^^^^^^"])
             else id
           ) $
           forEachElem (\ r l -> prettyRule w1 r ++ l) rs []
-        cnf = size rs > 1
+        cnf = S.size rs > 1
 
     ptl  = M.toAscList pt
     keys = fmap fst ptl
@@ -191,9 +199,9 @@ prettyLL1 pt =
     nl' _  = nl
 
     cf   = conflicts pt
-    noc  = size cf
+    noc  = S.size cf
     prettyConflicts
-      | null cf   = []
+      | S.null cf   = []
       | otherwise = [ "Grammar G is not LL(1)"
                     , show noc ++ " state(s) with conflicts found:"
                     , prettyPairs cf
@@ -204,7 +212,7 @@ prettyPairs :: Set (Nonterminal, Terminal) -> String
 prettyPairs nts =
   concat
   [ "{"
-  , intercalate ", " $ fmap prettyPair $ toAscList nts
+  , intercalate ", " $ fmap prettyPair $ S.toAscList nts
   , "}"
   ]
 

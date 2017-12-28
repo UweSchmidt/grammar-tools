@@ -1,15 +1,12 @@
 module CFG.Proper where
 
 import           Prelude hiding (Word, filter, iterate, null)
-import qualified Prelude as P
 
 import           Control.Applicative ((<|>))
-import           Data.Set  ( difference, empty, filter
-                           , insert
-                           , member, notMember
-                           , null, singleton, union
-                           )
+
+import qualified Prelude       as P
 import qualified Data.Relation as R
+import qualified Data.Set      as S
 
 import           CFG.Types
 import           CFG.FirstFollow (nullables)
@@ -34,7 +31,7 @@ reachables = fixpoint . reachables'
 
 reachables' :: Grammar -> [SymSet]
 reachables' (n, t, rules, s) =
-  iterate reachableSyms (singleton s)
+  iterate reachableSyms (S.singleton s)
   where
     reachableSyms :: SymSet -> SymSet
     reachableSyms rsys =
@@ -42,12 +39,12 @@ reachables' (n, t, rules, s) =
       where
         rSym :: Rule -> SymSet -> SymSet
         rSym (x, ys)
-          | x `member` rsys = forEach insert ys
+          | x `S.member` rsys = forEach S.insert ys
           | otherwise       = id
 
 unreachables :: Grammar -> SymSet
 unreachables g@(n, t, rules, s) =
-  n `difference` reachables g
+  n `S.difference` reachables g
 
 removeUnreachableSymbols :: Grammar -> Grammar
 removeUnreachableSymbols g@(n, t, rules, s)
@@ -55,10 +52,10 @@ removeUnreachableSymbols g@(n, t, rules, s)
   | otherwise       = g
   where
     unreachableSyms = unreachables g
-    hasUnreachables = not $ null unreachableSyms
+    hasUnreachables = not $ S.null unreachableSyms
 
-    n'     = n `difference` unreachableSyms
-    rules' = filter (\(x, _ys) -> x `notMember` unreachableSyms)
+    n'     = n `S.difference` unreachableSyms
+    rules' = S.filter (\(x, _ys) -> x `S.notMember` unreachableSyms)
              rules
 
 -- ----------------------------------------
@@ -76,12 +73,12 @@ productives' (n, t, rules, s) =
       where
         pSym :: Rule -> SymSet -> SymSet
         pSym (x, ys)
-          | all (`member` psys) ys = insert x
+          | all (`S.member` psys) ys = S.insert x
           | otherwise              = id
 
 unproductives :: Grammar -> SymSet
 unproductives g@(n, t, rules, s) =
-  n `difference` productives g
+  n `S.difference` productives g
 
 removeUnproductiveSymbols :: Grammar -> Grammar
 removeUnproductiveSymbols g@(n, t, rules, s)
@@ -89,14 +86,14 @@ removeUnproductiveSymbols g@(n, t, rules, s)
   | otherwise = g
   where
     unprodSyms = unproductives g
-    hasUnprod  = not $ null unprodSyms
+    hasUnprod  = not $ S.null unprodSyms
 
-    n''    = s `insert` n'   -- start symbol must remain in N
-    n'     = n `difference` unprodSyms
-    rules' = filter
-             ( \(x, ys) -> x `notMember` unprodSyms
+    n''    = s `S.insert` n'   -- start symbol must remain in N
+    n'     = n `S.difference` unprodSyms
+    rules' = S.filter
+             ( \(x, ys) -> x `S.notMember` unprodSyms
                            &&
-                           all (`notMember` unprodSyms) ys
+                           all (`S.notMember` unprodSyms) ys
              )
              rules
 
@@ -104,7 +101,7 @@ removeUnproductiveSymbols g@(n, t, rules, s)
 
 epsilonFree :: Grammar -> Grammar
 epsilonFree g@(n, t, rules, s)
-  | null nullSyms = g
+  | S.null nullSyms = g
   | otherwise = eliminateEpsProd nullSyms g
   where
     nullSyms = nullables g
@@ -113,18 +110,18 @@ eliminateEpsProd :: SymSet -> Grammar -> Grammar
 eliminateEpsProd nullSyms g@(n, t, rules, s) =
   (n, t, rules', s)
   where
-    rules' = reAddS $ forEachElem epsFree rules empty
+    rules' = reAddS $ forEachElem epsFree rules S.empty
 
     -- if nullable(s) rule "S ::= epsilon" must be added
     -- to the set of rules, so epsilon is member of (L(G))
 
-    reAddS | s `member` nullSyms = insert (s, [])
+    reAddS | s `S.member` nullSyms = S.insert (s, [])
            | otherwise           = id
 
     epsFree :: Rule -> Rules -> Rules
     epsFree (_, []) acc = acc              -- remove epsilon production
     epsFree (x, ys) acc =
-      forEach (\ys' -> insert (x, ys')) yss acc
+      forEach (\ys' -> S.insert (x, ys')) yss acc
       where
         yss :: [Word]
         yss = P.filter (not . P.null) $ rhs ys
@@ -132,7 +129,7 @@ eliminateEpsProd nullSyms g@(n, t, rules, s) =
         rhs [] = return []
         rhs (y1 : ys') = do
           ys'' <- rhs ys'
-          if y1 `member` nullSyms
+          if y1 `S.member` nullSyms
             then ( return (y1 : ys'')
                    <|>
                    return ys''
@@ -143,18 +140,18 @@ eliminateEpsProd nullSyms g@(n, t, rules, s) =
 
 chainFree :: Grammar -> Grammar
 chainFree g@(n, t, rules, s)
-  | s0 == nullSyms = withoutEps
-  | null nullSyms  = eliminateChainRules g
-  | otherwise      = chainFree $ eliminateEpsProd nullSyms g
+  | s0 == nullSyms  = withoutEps
+  | S.null nullSyms = eliminateChainRules g
+  | otherwise       = chainFree $ eliminateEpsProd nullSyms g
   where
     nullSyms = nullables g
-    s0       = singleton s
-    eps      = singleton (s, [])
+    s0       = S.singleton s
+    eps      = S.singleton (s, [])
 
-    withoutEps = (n', t', rules' `union` eps, s')
+    withoutEps = (n', t', rules' `S.union` eps, s')
       where
         (n', t', rules', s') =
-          chainFree (n, t, rules `difference` eps, s)
+          chainFree (n, t, rules `S.difference` eps, s)
 
 eliminateChainRules :: Grammar -> Grammar
 eliminateChainRules (n, t, rules, s) =
@@ -165,8 +162,8 @@ eliminateChainRules (n, t, rules, s) =
   (n, t, rules', s)
   where
     chainRules, noChainRules :: Rules
-    chainRules   = filter isChain rules
-    noChainRules = rules `difference` chainRules
+    chainRules   = S.filter isChain rules
+    noChainRules = rules `S.difference` chainRules
 
     rules' :: Rules
     rules' = R.forEachS addCR chainClosure noChainRules
@@ -176,24 +173,23 @@ eliminateChainRules (n, t, rules, s) =
           where
             add :: Rule -> Rules -> Rules
             add (x', ys')
-              | x' `member` ys
+              | x' `S.member` ys
                 &&
-                x' /= x        = insert (x, ys')
+                x' /= x        = S.insert (x, ys')
               | otherwise      = id
 
     isChain :: Rule -> Bool
-    isChain (_, [x]) = x `member` n
+    isChain (_, [x]) = x `S.member` n
     isChain _        = False
 
     chainClosure :: SymMap
     chainClosure =
-      {- traceShowId $ -} m1 `diffSyms` reflexSyms m1
+      {- traceShowId $ -} m1 `R.difference` R.reflex m1
       where
         m0, m1 :: SymMap
-        m0 = forEachElem ins chainRules emptySyms
+        m0 = forEachElem ins chainRules R.empty
+        m1 = R.trClosure m0
 
-        m1 =  transClosureSyms m0
-
-        ins (x, (y:_)) = insertSyms x (singleton y)
+        ins (x, (y:_)) = R.insert x y
 
 -- ----------------------------------------

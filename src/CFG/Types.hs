@@ -64,53 +64,24 @@ intermediates (x1 : xs1@(x2 : _))
 -- loop over a set of values, e.g. Symbols, Rules, ...
 
 forEachElem :: (v -> a -> a) -> Set v -> a -> a
-forEachElem op =
-  flip (foldl' (flip op))
+forEachElem = flip . foldl' . flip
+{-
+forEachElem op = flip (foldl' (flip op))
+-}
 
 -- loop over a list of values, e.g. Symbols, Words, ...
 
 forEach :: (v -> a -> a) -> [v] -> a -> a
-forEach op =
-  flip (P.foldr op)
+forEach = flip . P.foldr
 
 -- loop over a map of key value pairs
 
-forEachPair :: ((k, v) -> a -> a) -> Map k v -> a -> a
-forEachPair op = flip (M.foldWithKey (\k v r -> (k, v) `op` r))
+forEachPair :: (k -> v -> a -> a) -> Map k v -> a -> a
+forEachPair = flip . M.foldWithKey
 
--- ----------------------------------------
---
--- SymMap ops
-
-lookupSyms :: Symbol -> SymMap -> SymSet
-lookupSyms = R.lookupS
-
-insertSyms :: Symbol -> SymSet -> SymMap -> SymMap
-insertSyms = R.insertS
-
-unionSyms :: SymMap -> SymMap -> SymMap
-unionSyms = R.union
-
-diffSyms :: SymMap -> SymMap -> SymMap
-diffSyms = R.difference
-
-emptySyms :: SymMap
-emptySyms = R.empty
-
-singletonSyms :: Symbol -> SymSet -> SymMap
-singletonSyms = R.singletonS
-
-restrictSyms :: SymSet -> SymMap -> SymMap
-restrictSyms s m = R.filter (\ k _ -> k `member` s) m
-
-joinSyms :: SymMap -> SymMap -> SymMap
-joinSyms = R.comp
-
-transClosureSyms :: SymMap -> SymMap
-transClosureSyms = R.trClosure
-
-reflexSyms :: SymMap -> SymMap
-reflexSyms = R.reflex
+{-# INLINE forEachElem #-}
+{-# INLINE forEach     #-}
+{-# INLINE forEachPair #-}
 
 -- ----------------------------------------
 --

@@ -3,10 +3,14 @@
 module CFG.LL1Parser where
 
 import           Prelude hiding (Word)
-import           Data.Set (Set, empty, member, singleton, size, union, findMin)
+
+import           Data.Set (Set)
 import           Data.Map (Map)
-import qualified Data.Map as M
-import           Data.Tree
+
+import qualified Data.Map      as M
+import qualified Data.Relation as R
+import qualified Data.Set      as S
+
 import           Control.Monad
 
 import           CFG.Types
@@ -44,7 +48,7 @@ insRule n ts rule pt =
   forEachElem (\t -> addRule n t rule) ts pt
   where
     addRule n t rule pt' =
-      M.insertWith union (n, t) (singleton rule) pt'
+      M.insertWith S.union (n, t) (S.singleton rule) pt'
 
 -- ----------------------------------------
 
@@ -84,27 +88,27 @@ toLL1' nulls firstSets followSets (n, t, p, s) =
         -- lookup first of RHS ys union
         -- if nullable RHS: lookup follow x
 
-        lookaheads = firstYS `union` followX
+        lookaheads = firstYS `S.union` followX
           where
             firstYS = first nulls firstSets ys
             followX
-              | nullableWord nulls ys = lookupSyms x followSets
-              | otherwise             = empty
+              | nullableWord nulls ys = R.lookupS x followSets
+              | otherwise             = S.empty
 
 -- test on LL1
 
 isLL1 :: LL1ParserTable' -> Bool
 isLL1 pt =
-  forEachPair (\(_, rs) b -> size rs == 1 && b) pt True
+  forEachPair (\_nt rs b -> S.size rs == 1 && b) pt True
 
 conflicts :: LL1ParserTable' -> Set (Nonterminal, Terminal)
 conflicts pt =
-  forEachPair ( \(nt, rs) s ->
-                  s `union` ( if size rs > 1
-                              then singleton nt
-                              else empty
+  forEachPair ( \nt rs s ->
+                  s `S.union` ( if S.size rs > 1
+                              then S.singleton nt
+                              else S.empty
                             )
-              ) pt empty
+              ) pt S.empty
 
 -- convert to simple parser table
 --
@@ -112,7 +116,7 @@ conflicts pt =
 
 toLL1 :: LL1ParserTable' -> Maybe LL1ParserTable
 toLL1 pt
-  | isLL1 pt = Just $ M.map findMin pt
+  | isLL1 pt = Just $ M.map S.findMin pt
   | otherwise = Nothing
 
 type Processed  = Word
@@ -136,14 +140,14 @@ ll1Parse pt (n, t, p, s) input =
     loop :: LLState -> Input -> LeftDerive
 
     loop state@(pw, (top : stack1)) inp@(lookahead : inp1)
-      | top `member` n
+      | top `S.member` n
       , Just (_, rhs) <- lookupLL1 top lookahead pt
           = loop' (pw, rhs ++ stack1) inp
 
-      | top `member`n
+      | top `S.member`n
           = [(state, inp)]   -- syntax error
 
-      | top `member` t
+      | top `S.member` t
         &&
         top == lookahead     -- shift
           = loop' (lookahead : pw, stack1) inp1
@@ -210,7 +214,7 @@ ll1SyntaxTree pt (n, t, p, s) input = do
 
     recDesc :: Symbol -> LL1Parser'
     recDesc sym inp@(lookahead : inp')
-      | sym `member` t = checkSymbol sym lookahead inp'
+      | sym `S.member` t = checkSymbol sym lookahead inp'
       | otherwise      = derive      sym lookahead inp
     recDesc sym []     = mzero --  ("eof")
 
