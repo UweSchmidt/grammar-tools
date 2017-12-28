@@ -55,7 +55,10 @@ removeUnreachableSymbols g@(n, t, rules, s)
     hasUnreachables = not $ S.null unreachableSyms
 
     n'     = n `S.difference` unreachableSyms
-    rules' = S.filter (\(x, _ys) -> x `S.notMember` unreachableSyms)
+
+    rules' :: Rules
+    rules' = R.filter
+             (\x _ys -> x `S.notMember` unreachableSyms)
              rules
 
 -- ----------------------------------------
@@ -90,10 +93,12 @@ removeUnproductiveSymbols g@(n, t, rules, s)
 
     n''    = s `S.insert` n'   -- start symbol must remain in N
     n'     = n `S.difference` unprodSyms
-    rules' = S.filter
-             ( \(x, ys) -> x `S.notMember` unprodSyms
-                           &&
-                           all (`S.notMember` unprodSyms) ys
+
+    rules' :: Rules
+    rules' = R.filter
+             ( \x ys -> x    `S.notMember` unprodSyms
+                        &&
+                        all (`S.notMember` unprodSyms) ys
              )
              rules
 
@@ -110,18 +115,18 @@ eliminateEpsProd :: SymSet -> Grammar -> Grammar
 eliminateEpsProd nullSyms g@(n, t, rules, s) =
   (n, t, rules', s)
   where
-    rules' = reAddS $ forEachRule epsFree rules S.empty
+    rules' = reAddS $ forEachRule epsFree rules R.empty
 
     -- if nullable(s) rule "S ::= epsilon" must be added
     -- to the set of rules, so epsilon is member of (L(G))
 
-    reAddS | s `S.member` nullSyms = S.insert (s, [])
-           | otherwise           = id
+    reAddS | s `S.member` nullSyms = R.insert s []
+           | otherwise             = id
 
     epsFree :: Rule -> Rules -> Rules
     epsFree (_, []) acc = acc              -- remove epsilon production
     epsFree (x, ys) acc =
-      forEach (\ys' -> S.insert (x, ys')) yss acc
+      forEach (R.insert x) yss acc
       where
         yss :: [Word]
         yss = P.filter (not . P.null) $ rhs ys
@@ -146,12 +151,12 @@ chainFree g@(n, t, rules, s)
   where
     nullSyms = nullables g
     s0       = S.singleton s
-    eps      = S.singleton (s, [])
+    eps      = R.singleton s []
 
-    withoutEps = (n', t', rules' `S.union` eps, s')
+    withoutEps = (n', t', rules' `R.union` eps, s')
       where
         (n', t', rules', s') =
-          chainFree (n, t, rules `S.difference` eps, s)
+          chainFree (n, t, rules `R.difference` eps, s)
 
 eliminateChainRules :: Grammar -> Grammar
 eliminateChainRules (n, t, rules, s) =
@@ -162,8 +167,8 @@ eliminateChainRules (n, t, rules, s) =
   (n, t, rules', s)
   where
     chainRules, noChainRules :: Rules
-    chainRules   = S.filter isChain rules
-    noChainRules = rules `S.difference` chainRules
+    chainRules   = R.filter (curry isChain) rules
+    noChainRules = rules `R.difference` chainRules
 
     rules' :: Rules
     rules' = R.forEachS addCR chainClosure noChainRules
@@ -175,7 +180,7 @@ eliminateChainRules (n, t, rules, s) =
             add (x', ys')
               | x' `S.member` ys
                 &&
-                x' /= x        = S.insert (x, ys')
+                x' /= x        = R.insert x ys'
               | otherwise      = id
 
     isChain :: Rule -> Bool

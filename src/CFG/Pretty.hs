@@ -1,17 +1,8 @@
 module CFG.Pretty where
 
-import           Prelude hiding (Word, map, null)
-
 import           Data.List (intercalate)
-import           Data.Set  ( Set)
+import           Data.Set  (Set)
 
--- , null, empty
---                           , foldl', insert
---                           , map, member
---                           , singleton, size, union, toAscList
---                           )
-
-import qualified Prelude       as P
 import qualified Data.Map      as M
 import qualified Data.Relation as R
 import qualified Data.Set      as S
@@ -53,9 +44,9 @@ prettyProductions rules =
 
 prettyRules :: Rules -> Lines
 prettyRules rules =
-  concatMap (prettyRule $ ntWidth) $ S.toAscList rules
+  concatMap (prettyRule $ ntWidth) $ R.toList rules
   where
-    ntWidth = maximum (S.map (length . fst) rules)
+    ntWidth = maximum (fmap (length . fst) $ R.toList rules)
 
 prettyRule :: Int -> Rule -> Lines
 prettyRule wx (x, ys) =
@@ -174,18 +165,19 @@ prettyLL1 pt =
   ++
   concat (zipWith3 f nts ts rs)
   where
+    f :: Nonterminal -> Terminal -> Rules -> Lines
     f n' t' rs = nl' n' ++ prls
       where
         prls =
           indent (alignL (w1 `max` 7) n') $
           indent (alignL w2 t') $
           indent " : " $
-          ( if S.size rs > 1
+          ( if R.size rs > 1
             then (++ ["^^^^^^^^^^^^^^"])
             else id
           ) $
-          forEachRule (\ r l -> prettyRule w1 r ++ l) rs []
-        cnf = S.size rs > 1
+          forEachRule (\r l -> prettyRule w1 r ++ l) rs []
+        cnf = R.size rs > 1
 
     ptl  = M.toAscList pt
     keys = fmap fst ptl
@@ -263,8 +255,8 @@ prettyLeftDerive ds =
       | otherwise =
           [ "syntax error detected" ] ++ nl
       where
-        nullStack = P.null (last sts)
-        nullInp   = P.null (last ins)
+        nullStack = null (last sts)
+        nullInp   = null (last ins)
 
 -- ----------------------------------------
 --

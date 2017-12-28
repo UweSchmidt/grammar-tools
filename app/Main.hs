@@ -7,11 +7,13 @@ import CFG.Parser (toGrammar)
 import CFG.Proper
 import CFG.LL1Parser
 
-import System.Environment (getArgs)
+import System.Environment  (getArgs)
 import Options.Applicative
-import Data.Monoid((<>))
-import Data.Tree -- (drawTree)
-import Data.Set (difference)
+import Data.Monoid         ((<>))
+import Data.Tree           (Tree(..), drawTree)
+
+import qualified Data.Set      as S
+import qualified Data.Relation as R
 
 -- ----------------------------------------
 --
@@ -148,6 +150,7 @@ main1 args = do
       | Just s' <- extend args = extendGrammar s'
       | otherwise              = id
 
+    cleanGr :: Grammar -> Grammar
     cleanGr
       | clean args = removeUnreachableSymbols .
                      removeUnproductiveSymbols
@@ -157,10 +160,6 @@ main1 args = do
       | noeps args = epsilonFree
       | otherwise  = id
 
-    ll1Gr
-      | ll1 args  = undefined
-      | otherwise = id
-
     chnFrGr
       | chainfree args = chainFree
       | otherwise      = id
@@ -169,7 +168,7 @@ main1 args = do
       prLines $ prettyGrammar g ++ nl
       return g
 
-
+    outClean :: Grammar -> Grammar -> IO Grammar
     outClean g0@(n0, _, p0, _) g@(n, _, p, _)
       | n0 == n
         &&
@@ -180,11 +179,11 @@ main1 args = do
           prLines $
             [ "unreachable or/and unproductive rules detected"
             , "redundant nonterminals"
-            , tabL " " ++ prettySymSet (n0 `difference` n)
+            , tabL " " ++ prettySymSet (n0 `S.difference` n)
             , "redundant rules"
             ]
             ++
-            indent (tabL " ") (prettyRules (p0 `difference` p))
+            indent (tabL " ") (prettyRules (p0 `R.difference` p))
             ++ nl ++
             [ "simplified grammar"]
             ++ nl ++

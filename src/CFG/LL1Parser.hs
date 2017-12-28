@@ -44,11 +44,11 @@ lookupLL1 n t = M.lookup (n, t)
 
 insRule :: Nonterminal -> SymSet -> Rule ->
            LL1ParserTable' -> LL1ParserTable'
-insRule n ts rule pt =
-  forEachSymbol (\t -> addRule n t rule) ts pt
+insRule n ts rule =
+  forEachSymbol addRule ts
   where
-    addRule n t rule pt' =
-      M.insertWith S.union (n, t) (S.singleton rule) pt'
+    addRule t =
+      M.insertWith R.union (n, t) (uncurry R.singleton rule)
 
 -- ----------------------------------------
 
@@ -99,12 +99,12 @@ toLL1' nulls firstSets followSets (n, t, rules, s) =
 
 isLL1 :: LL1ParserTable' -> Bool
 isLL1 pt =
-  forEachKV (\_nt rs b -> S.size rs == 1 && b) pt True
+  forEachKV (\_nt rs b -> R.size rs == 1 && b) pt True
 
 conflicts :: LL1ParserTable' -> Set (Nonterminal, Terminal)
 conflicts pt =
   forEachKV ( \nt rs s ->
-                s `S.union` ( if S.size rs > 1
+                s `S.union` ( if R.size rs > 1
                               then S.singleton nt
                               else S.empty
                             )
@@ -116,7 +116,7 @@ conflicts pt =
 
 toLL1 :: LL1ParserTable' -> Maybe LL1ParserTable
 toLL1 pt
-  | isLL1 pt = Just $ M.map S.findMin pt
+  | isLL1 pt  = Just $ M.map fstRule pt
   | otherwise = Nothing
 
 type Processed  = Word

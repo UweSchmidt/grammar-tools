@@ -6,8 +6,9 @@ import           Prelude
 import qualified Prelude as P
 
 import           Data.Set
-import qualified Data.Set as S
-import qualified Data.Map as M
+import qualified Data.Set      as S
+import qualified Data.Map      as M
+import qualified Data.Relation as R
 
 -- ----------------------------------------
 --
@@ -26,14 +27,14 @@ rulesToGrammar rs@((s, _ys) : _) =
     n = fromList (fmap fst rs)
     a = fromList (concat (fmap snd rs))
     t = a `difference` n
-    p = fromList rs
+    p = R.fromList rs
 
 rulesToGrammar _ =
   (n, t, p, s)
   where
     n = singleton s
     t = singleton mempty
-    p = singleton (s, mempty)
+    p = R.singleton s mempty
     s = "Empty"
 
 toGrammar :: String -> Grammar

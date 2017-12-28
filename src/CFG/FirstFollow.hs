@@ -202,6 +202,6 @@ extendGrammar eofSy (n, t, p, s) =
     s' = s ++ "\'"
     n' = S.insert s' n
     t' = S.insert eofSy t
-    p' = S.insert (s', [s, eofSy]) p
+    p' = R.insert s' [s, eofSy] p
 
 -- ----------------------------------------

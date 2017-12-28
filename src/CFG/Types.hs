@@ -1,14 +1,16 @@
 module CFG.Types where
 
 import           Prelude hiding (Word, null, iterate)
-import qualified Prelude as P
-import           Data.Maybe (fromMaybe)
-import           Data.Set
-import           Data.Map (Map)
-import qualified Data.Map as M
-import           Data.Tree
-import           Data.Relation (Rel, Rel')
+import           Data.Maybe     (fromMaybe)
+import           Data.Set       (Set)
+import           Data.Map       (Map)
+import           Data.Relation  (Rel, Rel')
+import           Data.Tree      (Tree(..))
+
+import qualified Prelude       as P
+import qualified Data.Map      as M
 import qualified Data.Relation as R
+import qualified Data.Set      as S
 
 -- ----------------------------------------
 
@@ -21,11 +23,14 @@ type Word        = [Symbol]
 
 type SymSet      = Set Symbol
 
-type SymMap      = Rel' Symbol
+type SymMap      = Rel Symbol Symbol
 
 type Rule        = (Nonterminal, Word)
 
+type Rules       = Rel Nonterminal Word
+{-
 type Rules       = Set Rule
+-- -}
 
 type Grammar     = (SymSet, SymSet, Rules, Nonterminal)
 --                   N       T       P      S
@@ -64,7 +69,7 @@ intermediates (x1 : xs1@(x2 : _))
 -- loop over a set of values, e.g. Symbols, Rules, ...
 
 forEachElem :: (v -> a -> a) -> Set v -> a -> a
-forEachElem = flip . foldl' . flip
+forEachElem = flip . S.foldl' . flip
 {-
 forEachElem op = flip (foldl' (flip op))
 -}
@@ -80,7 +85,7 @@ forEachKV :: (k -> v -> a -> a) -> Map k v -> a -> a
 forEachKV = flip . M.foldWithKey
 
 forEachRule :: (Rule -> a -> a) -> Rules -> a -> a
-forEachRule = forEachElem
+forEachRule op = R.forEach (curry op)
 
 forEachSymbol :: (Symbol -> a -> a) -> SymSet -> a -> a
 forEachSymbol = forEachElem
@@ -90,6 +95,13 @@ forEachSymbol = forEachElem
 {-# INLINE forEachKV     #-}
 {-# INLINE forEachSymbol #-}
 {-# INLINE forEachRule   #-}
+
+-- ----------------------------------------
+--
+-- basic ops for rules
+
+fstRule :: Rules -> Rule
+fstRule = head . R.toList
 
 -- ----------------------------------------
 --
