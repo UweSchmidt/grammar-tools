@@ -21,7 +21,8 @@ library
                        CFG.Pretty
                        CFG.Proper
                        CFG.Types
-                                              
+                       Data.Relation
+                                                                     
   other-modules:
   
   build-depends:       base >= 4 && < 5,

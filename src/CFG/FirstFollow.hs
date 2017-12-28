@@ -7,6 +7,7 @@ import           Control.Arrow ((&&&))
 
 import           Data.Set  (Set, empty, foldl', insert, member, singleton, union)
 import           Data.List (tails)
+import qualified Data.Relation as R
 
 import           CFG.Types
 import           CFG.Parser
@@ -94,7 +95,7 @@ first nulls fSets w =
     firstSym :: Symbol -> SymSet -> SymSet
     firstSym x r
       | x `member` nulls = fx `union` r
-      | otherwise            = fx
+      | otherwise        = fx
       where
         fx = lookupSyms x fSets
 

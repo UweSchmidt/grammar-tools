@@ -10,7 +10,7 @@ import           Data.Set  ( Set, null, empty
                            , map, member
                            , singleton, size, union, toAscList
                            )
-
+import qualified Data.Relation as R
 import           CFG.Types
 import           CFG.LL1Parser
 
@@ -89,9 +89,9 @@ prettyFollows nulls fsm =
 
 prettySymMap :: SymMap -> Lines
 prettySymMap fsm =
-  concatMap prettyMS $ M.toAscList fsm
+  concatMap prettyMS $ R.toListS fsm
   where
-    nWidth = maximum . fmap length . M.keys $ fsm
+    nWidth = maximum . fmap (length . fst) . R.toList $ fsm
 
     prettyMS (x, syms) =
       return $

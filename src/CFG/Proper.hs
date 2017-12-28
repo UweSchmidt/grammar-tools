@@ -9,6 +9,7 @@ import           Data.Set  ( difference, empty, filter
                            , member, notMember
                            , null, singleton, union
                            )
+import qualified Data.Relation as R
 
 import           CFG.Types
 import           CFG.FirstFollow (nullables)
@@ -168,10 +169,10 @@ eliminateChainRules (n, t, rules, s) =
     noChainRules = rules `difference` chainRules
 
     rules' :: Rules
-    rules' = forEachPair addCR chainClosure noChainRules
+    rules' = R.forEachS addCR chainClosure noChainRules
       where
-        addCR :: (Symbol, SymSet) -> Rules -> Rules
-        addCR (x, ys) = forEachElem add noChainRules
+        addCR :: Symbol -> SymSet -> Rules -> Rules
+        addCR x ys = forEachElem add noChainRules
           where
             add :: Rule -> Rules -> Rules
             add (x', ys')

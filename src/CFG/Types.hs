@@ -7,6 +7,8 @@ import           Data.Set
 import           Data.Map (Map)
 import qualified Data.Map as M
 import           Data.Tree
+import           Data.Relation (Rel, Rel')
+import qualified Data.Relation as R
 
 -- ----------------------------------------
 
@@ -19,7 +21,7 @@ type Word        = [Symbol]
 
 type SymSet      = Set Symbol
 
-type SymMap      = Map Symbol SymSet
+type SymMap      = Rel' Symbol
 
 type Rule        = (Nonterminal, Word)
 
@@ -81,52 +83,34 @@ forEachPair op = flip (M.foldWithKey (\k v r -> (k, v) `op` r))
 -- SymMap ops
 
 lookupSyms :: Symbol -> SymMap -> SymSet
-lookupSyms sym = fromMaybe empty . M.lookup sym
+lookupSyms = R.lookupS
 
 insertSyms :: Symbol -> SymSet -> SymMap -> SymMap
-insertSyms = M.insertWith union
+insertSyms = R.insertS
 
 unionSyms :: SymMap -> SymMap -> SymMap
-unionSyms = M.unionWith union
+unionSyms = R.union
 
 diffSyms :: SymMap -> SymMap -> SymMap
-diffSyms = M.differenceWith diff
-  where
-    diff s1 s2
-      | null s'   = Nothing
-      | otherwise = Just s'
-      where
-        s' = s1 `difference` s2
+diffSyms = R.difference
 
 emptySyms :: SymMap
-emptySyms = M.empty
+emptySyms = R.empty
 
 singletonSyms :: Symbol -> SymSet -> SymMap
-singletonSyms x s = insertSyms x s emptySyms
+singletonSyms = R.singletonS
 
 restrictSyms :: SymSet -> SymMap -> SymMap
-restrictSyms s m = M.filterWithKey (\k _ -> k `member` s) m
+restrictSyms s m = R.filter (\ k _ -> k `member` s) m
 
 joinSyms :: SymMap -> SymMap -> SymMap
-joinSyms m1 m2 =
-  forEachPair f1 m1 emptySyms
-  where
-    f1 (x, ys) = forEachElem f2 ys
-      where
-        f2 y = insertSyms x (lookupSyms y m2)
+joinSyms = R.comp
 
 transClosureSyms :: SymMap -> SymMap
-transClosureSyms =
-  fixpoint . iterate step
-  where
-    step m = m `unionSyms` (m `joinSyms` m)
+transClosureSyms = R.trClosure
 
 reflexSyms :: SymMap -> SymMap
-reflexSyms m = forEachPair rf m emptySyms
-  where
-    rf (x, ys)
-      | x `member` ys = insertSyms x (singleton x)
-      | otherwise     = id
+reflexSyms = R.reflex
 
 -- ----------------------------------------
 --
