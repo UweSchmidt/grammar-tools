@@ -6,6 +6,7 @@ import CFG.Pretty
 import CFG.Parser (toGrammar)
 import CFG.Proper
 import CFG.LL1Parser
+import CFG.Generate
 
 import System.Environment  (getArgs)
 import Options.Applicative

@@ -1,7 +1,6 @@
 module CFG.Proper where
 
-import           Prelude hiding (Word, filter, iterate, null)
-
+import           Prelude hiding (Word, iterate)
 import           Control.Applicative ((<|>))
 
 import qualified Prelude       as P
@@ -18,7 +17,8 @@ import           CFG.FirstFollow (nullables)
 -- operations to build a proper grammar
 --
 -- remove unreachable nonterminals and
--- assocciated rules
+-- assocciated rules, remove epsilon productions,
+-- remove unproductive productions, no chains rules A ::= B
 --
 -- https://en.wikipedia.org/wiki/Context-free_grammar#Proper_CFGs
 
