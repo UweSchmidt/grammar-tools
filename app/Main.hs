@@ -284,7 +284,9 @@ showLL1ParserTable g =
 -- ----------------------------------------
 
 g1 :: Grammar
-g1 = extendGrammar "$" . toGrammar $
+g1 =
+  extendGrammar "$" $
+  toGrammar $
   unlines $
   [ "Stmt ::= if Expr then Stmt else Stmt fi"
   , "Stmt ::= while Expr do Stmt done"
@@ -296,7 +298,7 @@ g1 = extendGrammar "$" . toGrammar $
   , "SL1  ::= ; SL"
   , ""
   , "Expr ::= id"
-  , "Expr ::= num"
+  -- , "Expr ::= num"
   ]
 
 n1 = nullables g1
@@ -304,5 +306,7 @@ n1 = nullables g1
 fst1 = firstSets n1 g1
 
 fol1 = followSets n1 fst1 g1
+
+ws1 = take 5 $ generate g1
 
 -- ----------------------------------------
