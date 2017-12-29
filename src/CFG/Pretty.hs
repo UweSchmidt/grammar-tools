@@ -1,5 +1,6 @@
 module CFG.Pretty where
 
+import           Prelude hiding (Word)
 import           Data.List (intercalate)
 import           Data.Set  (Set)
 
@@ -259,6 +260,17 @@ prettyLeftDerive ds =
         nullInp   = null (last ins)
 
 -- ----------------------------------------
+
+prettyGen :: [Set Word] -> Lines
+prettyGen wss =
+  [ "enumeration of words" ]
+  ++ nl ++
+  concat (zipWith pr (nums 1) wss)
+  where
+    pr :: String -> Set Word -> Lines
+    pr i ws = indent i (map (intercalate " ") (S.toList ws) ++ [""])
+
+-- ----------------------------------------
 --
 -- basic indent ops
 
@@ -282,6 +294,7 @@ alignR :: Int -> String -> String
 alignR n xs =
   replicate ((n - length xs) `max` 0) ' ' ++ xs
 
+tabL, tabR :: String -> String
 tabL = alignL 8
 tabR = alignR 8
 

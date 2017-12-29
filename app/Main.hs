@@ -8,9 +8,11 @@ import CFG.Proper
 import CFG.LL1Parser
 import CFG.Generate
 
+import Prelude hiding (Word)
 import System.Environment  (getArgs)
 import Options.Applicative
 import Data.Monoid         ((<>))
+import Data.Set            (Set)
 import Data.Tree           (Tree(..), drawTree)
 
 import qualified Data.Set      as S
@@ -21,11 +23,12 @@ import qualified Data.Relation as R
 -- the boring part: command line parsing
 
 data Args = Args
-  { fflog     :: Bool
-  , extend    :: Maybe String
+  { extend    :: Maybe String
   , clean     :: Bool
   , noeps     :: Bool
   , chainfree :: Bool
+  , enumwords :: Maybe Int
+  , fflog     :: Bool
   , ll1       :: Bool
   , input     :: InpArg
   , grFile    :: String
@@ -42,17 +45,14 @@ data InpArg
 argsParser :: Parser Args
 argsParser =
   Args
-  <$> flag False True
-  ( long "log-first-follow"
-    <> short 'l'
-    <> help "log the iterations when computing FIRST and FOLLOW sets"
+  <$>
+  ( optional $ strOption
+    ( long "extend-grammar"
+      <> short 's'
+      <> metavar "START"
+      <> help "extend grammar with rule \"START ::= S $\" before processing"
+    )
   )
-  <*> (optional $ strOption
-  ( long "extend-grammar"
-    <> short 's'
-    <> metavar "START"
-    <> help "extend grammar with rule \"START ::= S $\" before processing"
-  ))
   <*>
   flag False True
   ( long "cleanup-grammar"
@@ -69,15 +69,43 @@ argsParser =
   flag False True
   ( long "chain-free"
     <> short 'C'
-    <> help ( "remove all rules of type A ::= B with nonterminal B"
-              ++ ", implies \"--remove-epsilon\""
-            )
+    <> ( help $ unwords
+         [ "build a chain free rule set,"
+         , "remove all rules of type A ::= B with nonterminal B,"
+         , "implies \"--remove-epsilon\""
+         ]
+       )
+  )
+  <*>
+  ( optional $ option auto
+    ( long "enum-words"
+      <> short 'w'
+      <> metavar "STEPS"
+      <> ( help $ unwords
+           [ "enumerate words with a maximum of STEPS generations of"
+           , "parallel derivation steps, so the syntax tree would have"
+           , "a maximum depth of STEPS. Only a small number (< 5) of"
+           , "steps is practically computable. For better productivity turn on"
+           , "the \"chain-free\" option"
+           ]
+         )
+    )
+  )
+  <*>
+  flag False True
+  ( long "log-first-follow"
+    <> short 'l'
+    <> help "log the iterations when computing FIRST and FOLLOW sets"
   )
   <*>
   flag False True
   ( long "LL1"
     <> short 'L'
-    <> help ("build LL(1) parser table and enable parsing")
+    <> ( help $ unwords
+         [ "build LL(1) parser table, check LL(1) property"
+         , "and optionally parse an input"
+         ]
+       )
   )
   <*> inpParser
   <*> strOption
@@ -89,7 +117,9 @@ argsParser =
 
 inpParser :: Parser InpArg
 inpParser =
-   ( FromFile <$> strOption
+   ( FromFile
+     <$>
+     strOption
      ( long "prog-file"
        <> short 'f'
        <> metavar "FILE"
@@ -97,13 +127,14 @@ inpParser =
      )
    )
    <|>
-   ( flag' FromStdin
-     ( long "stdin"
-       <> help "standard input to be parsed"
-     )
+   flag' FromStdin
+   ( long "stdin"
+     <> help "standard input to be parsed"
    )
    <|>
-   ( FromArg <$> strOption
+   ( FromArg
+     <$>
+     strOption
      ( long "prog"
        <> short 'p'
        <> help "argument to be parsed"
@@ -124,8 +155,10 @@ main = main1 =<< execParser opts
              [ "Given a CFG, compute Nullable-, FIRST- and FOLLOW-sets,"
              , "remove unreachable and unproductive rules,"
              , "transform into epsilon free form,"
+             , "eliminate chain productions,"
+             , "generate words in L(G),"
              , "check LL(1) property, compute LL(1) parser table,"
-             , "parse input strings and build syntax tree"
+             , "parse input strings and build syntax trees"
              ]
            )
         <> header "cfg - a toolbox for processing context free grammars"
@@ -146,6 +179,7 @@ main1 args = do
 
   outParseTab g4 $ toLL1ParserTable' g4
 
+  outGenWords $ generate g4
   where
     extGr
       | Just s' <- extend args = extendGrammar s'
@@ -240,6 +274,13 @@ main1 args = do
       | NoInp    <- input args = return ()     -- no input given
       | Just pt1 <- toLL1 pt   = parseInp pt1 g (input args)
       | otherwise              = return ()     -- no LL(1) grammar
+
+    outGenWords :: [Set Word] -> IO ()
+    outGenWords wss
+      | Just n <- enumwords args =
+          prLines . prettyGen . take n $ wss
+      | otherwise =
+          return ()
 
 -- ----------------------------------------
 
