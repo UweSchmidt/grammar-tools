@@ -82,7 +82,7 @@ forEach = flip . P.foldr
 -- loop over a map of key value pairs
 
 forEachKV :: (k -> v -> a -> a) -> Map k v -> a -> a
-forEachKV = flip . M.foldWithKey
+forEachKV = flip . M.foldrWithKey
 
 forEachRule :: (Rule -> a -> a) -> Rules -> a -> a
 forEachRule op = R.forEach (curry op)
