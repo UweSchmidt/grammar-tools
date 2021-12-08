@@ -96,6 +96,9 @@ forEachSymbol = forEachElem
 {-# INLINE forEachSymbol #-}
 {-# INLINE forEachRule   #-}
 
+forEachPair :: ((k, v) -> a -> a) -> Map k v -> a -> a
+forEachPair op = flip (M.foldrWithKey (\k v r -> (k, v) `op` r))
+
 -- ----------------------------------------
 --
 -- basic ops for rules
