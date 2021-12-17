@@ -52,32 +52,15 @@ insRule n ts rule =
 
 -- ----------------------------------------
 
-{-
-ll1ParserTable :: Grammar -> LL1ParserTable'
-ll1ParserTable g =
-  toParserTable' nulls firstSets followSets g
-  where
-    (nulls, firstSets, followSets) = nullsFirstsFollows g
-
-toParserTable' :: SymSet -> SymMap -> SymMap ->
-                  Grammar -> LL1ParserTable'
-
-toLL1ParserTable :: Grammar -> Maybe LL1ParserTable
-toLL1ParserTable g
-  | isLL1 pt  = Just (toLL1 pt)
-  | otherwise = Nothing
-  where
-    pt = toLL1ParserTable' g
--}
-
 toLL1ParserTable' :: Grammar -> LL1ParserTable'
-toLL1ParserTable' g = toLL1' nulls firstSets followSets g
+toLL1ParserTable' g =
+  toLL1' nulls firsts follows g
   where
-    (nulls, firstSets, followSets) = nullsFirstsFollows g
+    (nulls, firsts, follows) = nullsFirstsFollows g
 
 toLL1' :: SymSet -> SymMap -> SymMap ->
           Grammar -> LL1ParserTable'
-toLL1' nulls firstSets followSets (n, t, rules, s) =
+toLL1' nulls firsts follows (_n, _t, rules, _s) =
   forEachRule ins rules emptyLL1
   where
 
@@ -90,9 +73,9 @@ toLL1' nulls firstSets followSets (n, t, rules, s) =
 
         lookaheads = firstYS `S.union` followX
           where
-            firstYS = first nulls firstSets ys
+            firstYS = first nulls firsts ys
             followX
-              | nullableWord nulls ys = R.lookupS x followSets
+              | nullableWord nulls ys = R.lookupS x follows
               | otherwise             = S.empty
 
 -- test on LL1
@@ -132,14 +115,14 @@ type LeftDerive = [(LLState, Input)]
 -- in the derivation list
 
 ll1Parse :: LL1ParserTable -> Grammar -> Input -> LeftDerive
-ll1Parse pt (n, t, p, s) input =
-  loop initState input
+ll1Parse pt (n, t, _p, s) =
+  loop initState
   where
     initState = ([], [s])
 
     loop :: LLState -> Input -> LeftDerive
 
-    loop state@(pw, (top : stack1)) inp@(lookahead : inp1)
+    loop state@(pw, top : stack1) inp@(lookahead : inp1)
       | top `S.member` n
       , Just (_, rhs) <- lookupLL1 top lookahead pt
           = loop' (pw, rhs ++ stack1) inp
@@ -205,7 +188,7 @@ ll1SyntaxTree pt (n, t, p, s) input
 type LL1Parser' = Word -> Maybe (SyntaxTree, Word)
 
 ll1SyntaxTree :: LL1ParserTable -> Grammar -> Input -> Maybe SyntaxTree
-ll1SyntaxTree pt (n, t, p, s) input = do
+ll1SyntaxTree pt (_n, t, _p, s) input = do
   (st, rest) <- recDesc s input
   case rest of
     [] -> return st
@@ -216,7 +199,7 @@ ll1SyntaxTree pt (n, t, p, s) input = do
     recDesc sym inp@(lookahead : inp')
       | sym `S.member` t = checkSymbol sym lookahead inp'
       | otherwise      = derive      sym lookahead inp
-    recDesc sym []     = mzero --  ("eof")
+    recDesc _sym []    = mzero --  ("eof")
 
     checkSymbol :: Terminal -> Symbol -> LL1Parser'
     checkSymbol sym lookahead inp'
@@ -230,9 +213,9 @@ ll1SyntaxTree pt (n, t, p, s) input = do
           (subtrees, inp') <- rhs ys inp
           return (inner x subtrees, inp')
           where
-            rhs []        inp = return ([],      inp)
-            rhs (x1 : xs) inp = do
-              (t1, inp1) <- recDesc x1 inp
+            rhs []        inp0 = return ([],      inp0)
+            rhs (x1 : xs) inp0 = do
+              (t1, inp1) <- recDesc x1 inp0
               (ts, inp2) <- rhs     xs inp1
               return (t1 : ts, inp2)
 

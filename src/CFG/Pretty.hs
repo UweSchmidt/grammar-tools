@@ -1,15 +1,15 @@
 module CFG.Pretty where
 
-import           Prelude hiding (Word)
-import           Data.List (intercalate)
-import           Data.Set  (Set)
+import           Data.List     (intercalate)
+import           Data.Set      (Set)
+import           Prelude       hiding (Word)
 
 import qualified Data.Map      as M
 import qualified Data.Relation as R
 import qualified Data.Set      as S
 
-import           CFG.Types
 import           CFG.LL1Parser
+import           CFG.Types
 
 -- ----------------------------------------
 
@@ -45,9 +45,9 @@ prettyProductions rules =
 
 prettyRules :: Rules -> Lines
 prettyRules rules =
-  concatMap (prettyRule $ ntWidth) $ R.toList rules
+  concatMap (prettyRule ntWidth) $ R.toList rules
   where
-    ntWidth = maximum (fmap (length . fst) $ R.toList rules)
+    ntWidth = maximum ( length . fst <$> R.toList rules)
 
 prettyRule :: Int -> Rule -> Lines
 prettyRule wx (x, ys) =
@@ -55,7 +55,7 @@ prettyRule wx (x, ys) =
   concat
   [ alignL wx x
   , " ::= "
-  , intercalate " " ys
+  , unwords ys
   ]
 
 prettySymSet :: SymSet -> String
@@ -79,7 +79,7 @@ prettyFirsts fsm =
   (indent (tabL "") . prettySymMap $ fsm)
 
 prettyFollows :: SymSet -> SymMap -> Lines
-prettyFollows nulls fsm =
+prettyFollows _nulls fsm =
   return "Follow:"
   ++
   (indent (tabL "") . prettySymMap $ fsm)
@@ -99,9 +99,7 @@ prettySymMap fsm =
       ]
 
 prettyNullsFirstsFollows :: Grammar -> (SymSet, SymMap, SymMap) -> Lines
-prettyNullsFirstsFollows
-  (n, t, rules, s)
-  (nulls, firsts, follows) =
+prettyNullsFirstsFollows (n, _t, _rules, _s) (nulls, firsts, follows) =
   concat
   [ prettyNullables nulls
   , nl
@@ -114,8 +112,8 @@ prettyNullsFirstsFollows
 
 prettyNullables' :: [SymSet] -> Lines
 prettyNullables' syms =
-  [ tabL "Nullables:" ]
-  ++
+  tabL "Nullables:"
+  :
   zipWith f (nums 0) syms
   where
     f i s = i ++ prettySymSet s
@@ -127,7 +125,7 @@ prettyFirsts' fsms =
   prettySymMapList fsms
 
 prettyFollows' :: SymSet -> [SymMap] -> Lines
-prettyFollows' nulls fsms =
+prettyFollows' _nulls fsms =
   return "Follow:"
   ++
   prettySymMapList fsms
@@ -140,15 +138,13 @@ prettySymMapList fsms =
 
 
 prettyNullsFirstsFollows' :: Grammar -> ([SymSet], [SymMap], [SymMap]) -> Lines
-prettyNullsFirstsFollows'
-  (n, t, rules, s)
-  (nulls', firsts', follows') =
+prettyNullsFirstsFollows' (n, _t, _rules, _s) (nulls', firsts', follows') =
   concat
   [ prettyNullables' nulls'
   , nl
   , prettyFirsts'  $ fmap (onlyNTs n) firsts'
   , nl
-  , prettyFollows' nulls $ follows' -- fmap (restrictSyms n) follows'
+  , prettyFollows' nulls follows' -- fmap (restrictSyms n) follows'
   ]
   where
     nulls = last nulls'
@@ -167,18 +163,17 @@ prettyLL1 pt =
   concat (zipWith3 f nts ts rs)
   where
     f :: Nonterminal -> Terminal -> Rules -> Lines
-    f n' t' rs = nl' n' ++ prls
+    f n' t' rs' = nl' n' ++ prls
       where
         prls =
           indent (alignL (w1 `max` 7) n') $
           indent (alignL w2 t') $
           indent " : " $
-          ( if R.size rs > 1
+          ( if R.size rs' > 1
             then (++ ["^^^^^^^^^^^^^^"])
             else id
           ) $
-          forEachRule (\r l -> prettyRule w1 r ++ l) rs []
-        cnf = R.size rs > 1
+          forEachRule (\r l -> prettyRule w1 r ++ l) rs' []
 
     ptl  = M.toAscList pt
     keys = fmap fst ptl
@@ -205,7 +200,7 @@ prettyPairs :: Set (Nonterminal, Terminal) -> String
 prettyPairs nts =
   concat
   [ "{"
-  , intercalate ", " $ fmap prettyPair $ S.toAscList nts
+  , intercalate ", " (prettyPair <$> S.toAscList nts)
   , "}"
   ]
 
@@ -246,15 +241,15 @@ prettyLeftDerive ds =
       ++ " | " ++
       alignR len2 w2
 
-    prettyL = intercalate " "
+    prettyL = unwords
 
     success
       | nullStack
         &&
         nullInp   =
-          ["successful parse"] ++ nl
+          "successful parse" : nl
       | otherwise =
-          [ "syntax error detected" ] ++ nl
+          "syntax error detected" : nl
       where
         nullStack = null (last sts)
         nullInp   = null (last ins)
@@ -268,7 +263,7 @@ prettyGen wss =
   concat (zipWith pr (nums 1) wss)
   where
     pr :: String -> Set Word -> Lines
-    pr i ws = indent i (map (intercalate " ") (S.toList ws) ++ [""])
+    pr i ws = indent i (map unwords (S.toList ws) ++ [""])
 
 -- ----------------------------------------
 --

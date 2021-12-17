@@ -3,14 +3,13 @@
 
 module Data.Relation where
 
-import           Prelude hiding (foldr)
-import qualified Prelude as P
+import           Data.List  (foldl')
+import           Data.Map   (Map)
+import qualified Data.Map   as M
 import           Data.Maybe (fromMaybe)
-import           Data.Set (Set)
-import qualified Data.Set as S
-import           Data.Map (Map)
-import qualified Data.Map as M
-import           Data.List (foldl')
+import           Data.Set   (Set)
+import qualified Data.Set   as S
+import           Prelude    hiding (foldr)
 
 -- ----------------------------------------
 
@@ -32,7 +31,7 @@ null :: Rel a b -> Bool
 null (Rel m) = M.null m
 
 card, size :: Rel a b -> Int
-size r = forEachS (\_ ys !acc -> (S.size ys + acc)) r 0
+size r = forEachS (\_ ys !acc -> S.size ys + acc) r 0
 card   = size
 
 member :: (Ord a, Ord b) => a -> b -> Rel a b -> Bool
@@ -91,10 +90,10 @@ rng :: Ord b => Rel a b -> Set b
 rng r = forEachS (\_ ys acc -> ys `S.union` acc) r S.empty
 
 toList :: Rel a b -> [(a, b)]
-toList r = foldr (\x y -> ((x, y) :)) [] r
+toList = foldr (\x y -> ((x, y) :)) []
 
 toListS :: Rel a b -> [(a, Set b)]
-toListS r = foldrS (\x y -> ((x, y) :)) [] r
+toListS = foldrS (\x y -> ((x, y) :)) []
 
 fromList :: (Ord a, Ord b) => [(a, b)] -> Rel a b
 fromList = foldl' (flip (uncurry insert)) empty
@@ -141,8 +140,9 @@ trClosure =
     step r = r `union` (r `comp` r)
 
     fixpoint (x1 : xs@(x2 : _))
-      | x1 == x2 = x1
+      | x1 == x2  = x1
       | otherwise = fixpoint xs
+    fixpoint _    = error "trClosure.fixpoint: illegal argument"
 
 reflex :: Ord a => Rel' a -> Rel' a
 reflex r = S.foldl' (\ acc x -> insert x x acc) empty $ dom r `S.union` rng r
@@ -174,7 +174,7 @@ forEachS f (Rel m) =
 foldr :: (a -> b -> r -> r) -> r -> Rel a b -> r
 foldr f = foldrS f1
   where
-    f1 k vs acc = S.foldr (\ v acc' -> f k v acc') acc vs
+    f1 k vs acc = S.foldr (f k) acc vs
 
 foldrS :: (a -> Set b -> r -> r) -> r -> Rel a b -> r
 foldrS f acc (Rel m) =

@@ -1,14 +1,16 @@
 module CFG.Proper where
 
-import           Prelude hiding (Word, iterate)
 import           Control.Applicative ((<|>))
+import           Prelude             hiding (Word, iterate)
 
-import qualified Prelude       as P
-import qualified Data.Relation as R
-import qualified Data.Set      as S
+import qualified Data.Relation       as R
+import qualified Data.Set            as S
+import qualified Prelude             as P
 
-import           CFG.Types
-import           CFG.FirstFollow (nullables)
+import           CFG.FirstFollow     (nullables)
+import           CFG.Types           (Grammar, Rule, Rules, SymMap, SymSet,
+                                      Symbol, Word, fixpoint, forEach,
+                                      forEachRule, iterate)
 
 -- import Debug.Trace
 
@@ -30,7 +32,7 @@ reachables :: Grammar -> SymSet
 reachables = fixpoint . reachables'
 
 reachables' :: Grammar -> [SymSet]
-reachables' (n, t, rules, s) =
+reachables' (_n, _t, rules, s) =
   iterate reachableSyms (S.singleton s)
   where
     reachableSyms :: SymSet -> SymSet
@@ -43,7 +45,7 @@ reachables' (n, t, rules, s) =
           | otherwise       = id
 
 unreachables :: Grammar -> SymSet
-unreachables g@(n, t, rules, s) =
+unreachables g@(n, _t, _rules, _s) =
   n `S.difference` reachables g
 
 removeUnreachableSymbols :: Grammar -> Grammar
@@ -67,7 +69,7 @@ productives :: Grammar -> SymSet
 productives = fixpoint . productives'
 
 productives' :: Grammar -> [SymSet]
-productives' (n, t, rules, s) =
+productives' (_n, t, rules, _s) =
   iterate prodSyms t
   where
     prodSyms :: SymSet -> SymSet
@@ -80,7 +82,7 @@ productives' (n, t, rules, s) =
           | otherwise              = id
 
 unproductives :: Grammar -> SymSet
-unproductives g@(n, t, rules, s) =
+unproductives g@(n, _t, _rules, _s) =
   n `S.difference` productives g
 
 removeUnproductiveSymbols :: Grammar -> Grammar
@@ -105,14 +107,14 @@ removeUnproductiveSymbols g@(n, t, rules, s)
 -- ----------------------------------------
 
 epsilonFree :: Grammar -> Grammar
-epsilonFree g@(n, t, rules, s)
+epsilonFree g
   | S.null nullSyms = g
   | otherwise = eliminateEpsProd nullSyms g
   where
     nullSyms = nullables g
 
 eliminateEpsProd :: SymSet -> Grammar -> Grammar
-eliminateEpsProd nullSyms g@(n, t, rules, s) =
+eliminateEpsProd nullSyms (n, t, rules, s) =
   (n, t, rules', s)
   where
     rules' = reAddS $ forEachRule epsFree rules R.empty
@@ -135,10 +137,9 @@ eliminateEpsProd nullSyms g@(n, t, rules, s) =
         rhs (y1 : ys') = do
           ys'' <- rhs ys'
           if y1 `S.member` nullSyms
-            then ( return (y1 : ys'')
-                   <|>
-                   return ys''
-                 )
+            then return (y1 : ys'')
+                 <|>
+                 return ys''
             else   return (y1 : ys'')
 
 -- ----------------------------------------
@@ -195,6 +196,7 @@ eliminateChainRules (n, t, rules, s) =
         m0 = forEachRule ins chainRules R.empty
         m1 = R.trClosure m0
 
-        ins (x, (y:_)) = R.insert x y
+        ins (x, y : _) = R.insert x y
+        ins _        = id
 
 -- ----------------------------------------

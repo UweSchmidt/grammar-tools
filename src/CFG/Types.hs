@@ -1,16 +1,15 @@
 module CFG.Types where
 
-import           Prelude hiding (Word, null, iterate)
-import           Data.Maybe     (fromMaybe)
-import           Data.Set       (Set)
-import           Data.Map       (Map)
-import           Data.Relation  (Rel, Rel')
-import           Data.Tree      (Tree(..))
+import           Data.Map      (Map)
+import           Data.Relation (Rel)
+import           Data.Set      (Set)
+import           Data.Tree     (Tree (..))
+import           Prelude       hiding (Word, iterate, null)
 
-import qualified Prelude       as P
 import qualified Data.Map      as M
 import qualified Data.Relation as R
 import qualified Data.Set      as S
+import qualified Prelude       as P
 
 -- ----------------------------------------
 
@@ -27,10 +26,7 @@ type SymMap      = Rel Symbol Symbol
 
 type Rule        = (Nonterminal, Word)
 
-type Rules       = Rel Nonterminal Word
-{-
-type Rules       = Set Rule
--- -}
+type Rules       = Rel Nonterminal Word  -- Set Rule
 
 type Grammar     = (SymSet, SymSet, Rules, Nonterminal)
 --                   N       T       P      S
@@ -51,14 +47,16 @@ fixpoint :: Eq a => [a] -> a
 fixpoint (x1 : xs1@(x2 : _))
   | x1 == x2  = x1
   | otherwise = fixpoint xs1
+fixpoint _  = error "fixpoint: illegal argument"
 
 -- take all intermediate results until the least fixpoint
 -- this is only needed for tracing the iteration process
 
 intermediates :: Eq a => [a] -> [a]
 intermediates (x1 : xs1@(x2 : _))
-  | x1 == x2 = [x1]
-  | otherwise = x1 : intermediates xs1
+  | x1 == x2    = [x1]
+  | otherwise   = x1 : intermediates xs1
+intermediates _ = error "intermediates: illegal argument"
 
 -- N.B. in a strict language iterate and fixpoint/intermediates
 -- must be combined into single functions, else iteration

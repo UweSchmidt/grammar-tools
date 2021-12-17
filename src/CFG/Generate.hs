@@ -1,15 +1,13 @@
 module CFG.Generate where
 
-import           Prelude hiding (Word, iterate)
-import           Control.Applicative ((<|>))
-import           Data.Set (Set)
-import           Data.List (foldl', unfoldr)
+import           Data.List     (foldl', unfoldr)
+import           Data.Set      (Set)
+import           Prelude       hiding (Word, iterate)
 
-import qualified Prelude       as P
 import qualified Data.Relation as R
 import qualified Data.Set      as S
 
-import           CFG.Types
+import           CFG.Types     (Grammar, Word, forEachElem, iterate)
 
 -- ----------------------------------------
 
@@ -34,10 +32,10 @@ type DerivedWords = (Set Word, Set Word)
 -- for the n'th iteration
 
 generate' :: Grammar -> [DerivedWords]
-generate' g@(n, t, rules, s) =
-  tail $ iterate derive' (S.empty, S.singleton [s])
+generate' g@(_n, _t, _rules, s) =
+  tail $ iterate derive'' (S.empty, S.singleton [s])
   where
-    derive' (ws, fs) = (ws `S.union` ws', fs')
+    derive'' (ws, fs) = (ws `S.union` ws', fs')
       where
         (ws', fs') = derive g fs
 -- ----------------------------------------

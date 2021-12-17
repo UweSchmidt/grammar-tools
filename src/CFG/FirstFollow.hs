@@ -1,18 +1,17 @@
 module CFG.FirstFollow where
 
-import           Prelude hiding (Word, iterate)
+import           Prelude       hiding (Word, iterate)
 
 import           Control.Arrow ((&&&))
 
-import           Data.Set  (Set)
-import           Data.List (tails)
+import           Data.List     (tails)
 
-import qualified Prelude       as P
 import qualified Data.Relation as R
 import qualified Data.Set      as S
 
-import           CFG.Types
-import           CFG.Parser
+import           CFG.Types     (Grammar, Rule, SymMap, SymSet, Symbol, Word,
+                                fixpoint, forEach, forEachRule, forEachSymbol,
+                                intermediates, iterate)
 
 -- ----------------------------------------
 --
@@ -25,7 +24,7 @@ nullables = fixpoint . nullables'
 -- when computing the nullable symbols
 
 nullables' :: Grammar -> [SymSet]
-nullables' (n, t, rules, s) =
+nullables' (_n, _t, rules, _s) =
   iterate nullSyms S.empty
   where
     nullSyms :: SymSet -> SymSet
@@ -61,7 +60,7 @@ firstSets nulls =
 -- for traces we want the list of all intermediate results
 
 firstSets' :: SymSet -> Grammar -> [SymMap]
-firstSets' nulls (n, t, rules, s) =
+firstSets' nulls (n, t, rules, _s) =
   iterate firstSyms initFirstSyms
   where
     firstSyms :: SymMap -> SymMap
@@ -84,7 +83,7 @@ firstSets' nulls (n, t, rules, s) =
           forEachSymbol (\sym -> R.insertS sym (S.singleton sym)) t R.empty
 
         initN =
-          forEachSymbol (\sym -> R.insertS sym S.empty) n R.empty
+          forEachSymbol (`R.insertS` S.empty) n R.empty
 
 -- take a word [y1,y2,..,yn], e.g. a right hand side
 -- of a grammar rule, and compute the FIRST set
@@ -112,7 +111,7 @@ followSets nulls firsts g =
 -- for traces we want the list of intermediate results
 
 followSets' :: SymSet -> SymMap -> Grammar -> [SymMap]
-followSets' nulls firsts (n, t, rules, s) =
+followSets' nulls firsts (n, t, rules, _s) =
   iterate followSyms initFollowSyms
   where
     followSyms :: SymMap -> SymMap
@@ -156,10 +155,10 @@ followSets' nulls firsts (n, t, rules, s) =
                 rhs = map (head &&& tail) . init . tails
 
                 followRHS :: (Symbol, Word) -> SymMap -> SymMap
-                followRHS (y1, ys) r1
+                followRHS (y1, ys1) r1
                   -- optimization: terminals don't need to be processed
                   | y1 `S.member` t = r1
-                  | otherwise       = R.insertS y1 (first nulls firsts ys) r1
+                  | otherwise       = R.insertS y1 (first nulls firsts ys1) r1
 
     -- optimization: for parser construction
     -- follow sets are only used for nontermnals
@@ -169,12 +168,12 @@ followSets' nulls firsts (n, t, rules, s) =
 
     initFollowSyms :: SymMap
     initFollowSyms =
-      forEachSymbol (\sym -> R.insertS sym S.empty) n R.empty
+      forEachSymbol (`R.insertS` S.empty) n R.empty
 
 -- ----------------------------------------
 
 nullsFirstsFollows :: Grammar -> (SymSet, SymMap, SymMap)
-nullsFirstsFollows g@(n, t, rules, s) =
+nullsFirstsFollows g =
   (nulls, firsts, follows)
   where
     nulls   = nullables  g
@@ -186,7 +185,7 @@ nullsFirstsFollows g@(n, t, rules, s) =
 -- first and follow sets with trace of iterations
 
 nullsFirstsFollows' :: Grammar -> ([SymSet], [SymMap], [SymMap])
-nullsFirstsFollows' g@(n, t, rules, s) =
+nullsFirstsFollows' g =
   (nulls', firsts', follows')
   where
     nulls'   = intermediates $ nullables'  g

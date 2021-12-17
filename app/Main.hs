@@ -1,22 +1,35 @@
 module Main where
 
-import CFG.Types
-import CFG.FirstFollow
-import CFG.Pretty
-import CFG.Parser (toGrammar)
-import CFG.Proper
-import CFG.LL1Parser
-import CFG.Generate
+import           CFG.FirstFollow     (extendGrammar, firstSets, followSets,
+                                      nullables, nullsFirstsFollows,
+                                      nullsFirstsFollows')
+import           CFG.Generate        (generate)
+import           CFG.LL1Parser       (LL1ParserTable, ll1Parse, ll1SyntaxTree,
+                                      toLL1, toLL1ParserTable')
+import           CFG.Parser          (toGrammar)
+import           CFG.Pretty          (Lines, indent, nl, prettyGen,
+                                      prettyGrammar, prettyLL1,
+                                      prettyLeftDerive,
+                                      prettyNullsFirstsFollows,
+                                      prettyNullsFirstsFollows', prettyRules,
+                                      prettySymSet, tabL)
+import           CFG.Proper          (chainFree, epsilonFree,
+                                      removeUnproductiveSymbols,
+                                      removeUnreachableSymbols)
+import           CFG.Types           (Grammar, SymMap, SymSet, Word)
 
-import Prelude hiding (Word)
-import System.Environment  (getArgs)
-import Options.Applicative
-import Data.Monoid         ((<>))
-import Data.Set            (Set)
-import Data.Tree           (Tree(..), drawTree)
+import qualified Data.Relation       as R
+import           Data.Set            (Set)
+import qualified Data.Set            as S
+import           Data.Tree           (Tree (..), drawTree)
+import           Options.Applicative (Alternative ((<|>)),
+                                      Parser, auto,
+                                      execParser, flag, flag', fullDesc, header,
+                                      help, helper, info, long, metavar, option,
+                                      optional, progDesc, short, strOption,
+                                      (<**>))
 
-import qualified Data.Set      as S
-import qualified Data.Relation as R
+import           Prelude             hiding (Word)
 
 -- ----------------------------------------
 --
@@ -146,21 +159,21 @@ inpParser =
 -- ----------------------------------------
 
 main :: IO ()
-main = main1 =<< execParser opts
+main = execParser opts >>= main1
   where
     opts = info (argsParser <**> helper)
       ( fullDesc
-        <> ( progDesc $
-             unlines
-             [ "Given a CFG, compute Nullable-, FIRST- and FOLLOW-sets,"
-             , "remove unreachable and unproductive rules,"
-             , "transform into epsilon free form,"
-             , "eliminate chain productions,"
-             , "generate words in L(G),"
-             , "check LL(1) property, compute LL(1) parser table,"
-             , "parse input strings and build syntax trees"
-             ]
-           )
+        <>  ( progDesc $
+              unlines
+              [ "Given a CFG, compute Nullable-, FIRST- and FOLLOW-sets,"
+              , "remove unreachable and unproductive rules,"
+              , "transform into epsilon free form,"
+              , "eliminate chain productions,"
+              , "generate words in L(G),"
+              , "check LL(1) property, compute LL(1) parser table,"
+              , "parse input strings and build syntax trees"
+              ]
+            )
         <> header "cfg - a toolbox for processing context free grammars"
       )
 
@@ -204,10 +217,8 @@ main1 args = do
       return g
 
     outClean :: Grammar -> Grammar -> IO Grammar
-    outClean g0@(n0, _, p0, _) g@(n, _, p, _)
-      | n0 == n
-        &&
-        p0 == p =
+    outClean (n0, _, p0, _) g@(n, _, p, _)
+      | n0 == n && p0 == p =
           return g
 
       | otherwise = do
@@ -225,11 +236,10 @@ main1 args = do
             prettyGrammar g
           return g
 
-    outEpsFree g0@(n0, _, p0, _) g@(n, _, p, _)
-      | n0 == n
-        &&
-        p0 == p =
+    outEpsFree (n0, _, p0, _) g@(n, _, p, _)
+      | n0 == n && p0 == p =
           return g
+
       | otherwise = do
           prLines $
             [ "transform grammar into epsilon free form"
@@ -238,10 +248,8 @@ main1 args = do
             prettyGrammar g
           return g
 
-    outChainFree g0@(n0, _, p0, _) g@(n, _, p, _)
-      | n0 == n
-        &&
-        p0 == p =
+    outChainFree (n0, _, p0, _) g@(n, _, p, _)
+      | n0 == n && p0 == p =
           return g
       | otherwise = do
           prLines $
@@ -265,10 +273,6 @@ main1 args = do
           prLines $ showFirstFollow' g
       | otherwise =
           prLines $ showFirstFollow g
-
-    outLL1 pt = do
-      prLines $ prettyLL1 pt
-      return pt
 
     outParseLL1 pt g
       | NoInp    <- input args = return ()     -- no input given
@@ -302,7 +306,7 @@ parseInp pt g iop  = do
         $ ll1SyntaxTree pt g inp
 
 reverseTree :: Tree a -> Tree a
-reverseTree (Node x ts) = Node x (fmap reverseTree $ reverse ts)
+reverseTree (Node x ts) = Node x (reverseTree <$> reverse ts)
 
 prLines :: Lines -> IO ()
 prLines = putStrLn . unlines
@@ -324,11 +328,11 @@ showLL1ParserTable g =
 
 -- ----------------------------------------
 
-g1 :: Grammar
-g1 =
+gr1 :: Grammar
+gr1 =
   extendGrammar "$" $
   toGrammar $
-  unlines $
+  unlines
   [ "Stmt ::= if Expr then Stmt else Stmt fi"
   , "Stmt ::= while Expr do Stmt done"
   , "Stmt ::= begin SL end"
@@ -342,12 +346,16 @@ g1 =
   -- , "Expr ::= num"
   ]
 
-n1 = nullables g1
+n1 :: SymSet
+n1 = nullables gr1
 
-fst1 = firstSets n1 g1
+fst1 :: SymMap
+fst1 = firstSets n1 gr1
 
-fol1 = followSets n1 fst1 g1
+fol1 :: SymMap
+fol1 = followSets n1 fst1 gr1
 
-ws1 = take 5 $ generate g1
+ws1 :: [Set Word]
+ws1 = take 5 $ generate gr1
 
 -- ----------------------------------------
